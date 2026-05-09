@@ -1,759 +1,500 @@
-
 <!DOCTYPE html>
-<!-- Actualizado 9 de mayo 2026 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Letras Académicas</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<title>Letras Académicas - Instituto Belgrano</title>
+
+<!-- Fuentes: Lora para lectura, Inter para interfaz -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+<!-- Quill.js CSS (Editor Enriquecido) -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --ink:#1a1a2e;--ink2:#4a4a6a;--ink3:#8a8aaa;
-  --paper:#f8f7f2;--paper2:#f0efe8;--paper3:#e8e7de;
-  --accent:#2d5a8e;--accent2:#e8f0f8;--accent3:#c5d8ed;
-  --warn:#8e4a2d;--ok:#2d6e4a;
-  --serif:'Lora',Georgia,serif;--sans:'DM Sans',sans-serif;
-  --r:10px;--shadow:0 2px 12px rgba(26,26,46,.1)
+/* ═══════════════════════════════════════════════════════════════
+   VARIABLES Y MODO OSCURO (ESTILO CLÁSICO)
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+    --bg-body: #fbfaf8; --bg-nav: #1e293b; --bg-sidebar: #ffffff; --bg-card: #ffffff;
+    --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
+    --accent: #8b1818; --accent-hover: #6a1212; --accent-light: #fef2f2;
+    --font-serif: 'Lora', Georgia, serif; --font-sans: 'Inter', sans-serif;
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.05); --r: 8px;
+    --ok: #15803d; --warn: #b45309; --purple: #6d28d9;
 }
-body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;font-size:15px}
-#app{display:flex;flex-direction:column;min-height:100vh}
 
-/* TOPBAR */
-.topbar{background:var(--ink);color:#fff;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar-brand{font-family:var(--serif);font-size:18px;letter-spacing:.3px;color:#fff}
-.topbar-brand span{color:var(--accent3);font-style:italic}
-.topbar-right{display:flex;align-items:center;gap:12px}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#fff;cursor:pointer;border:2px solid rgba(255,255,255,.2)}
-.user-name{font-size:13px;color:rgba(255,255,255,.75)}
-.btn-logout{font-size:12px;color:rgba(255,255,255,.5);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:4px;font-family:var(--sans)}
-.btn-logout:hover{color:#fff;background:rgba(255,255,255,.1)}
+body.dark-mode {
+    --bg-body: #0f172a; --bg-nav: #020617; --bg-sidebar: #1e293b; --bg-card: #1e293b;
+    --text-main: #f8fafc; --text-muted: #94a3b8; --border-color: #334155;
+    --accent: #e14d4d; --accent-hover: #fca5a5; --accent-light: rgba(225, 77, 77, 0.1);
+}
 
-/* MAIN LAYOUT */
-.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 52px)}
-.sidebar{width:220px;background:var(--paper2);border-right:1px solid var(--paper3);padding:20px 0;flex-shrink:0;overflow-y:auto}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;font-size:14px;color:var(--ink2);transition:all .15s;border-left:3px solid transparent;user-select:none}
-.nav-item:hover{background:var(--paper3);color:var(--ink)}
-.nav-item.active{background:var(--accent2);color:var(--accent);border-left-color:var(--accent);font-weight:500}
-.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500}
-.content{flex:1;overflow-y:auto;padding:28px 32px}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-sans); background: var(--bg-body); color: var(--text-main); font-size: 15px; transition: background 0.3s, color 0.3s; }
+.hidden { display: none !important; }
 
-/* LOGIN */
-#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--ink);position:fixed;inset:0;z-index:100}
-.login-card{background:var(--paper);border-radius:16px;padding:40px;width:380px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.login-logo{font-family:var(--serif);font-size:26px;color:var(--ink);margin-bottom:4px}
-.login-logo span{color:var(--accent);font-style:italic}
-.login-sub{font-size:13px;color:var(--ink3);margin-bottom:28px;line-height:1.5}
-.field{margin-bottom:16px}
-.field label{display:block;font-size:12px;font-weight:500;color:var(--ink2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.field input{width:100%;padding:10px 14px;border:1px solid var(--paper3);border-radius:8px;font-size:14px;background:var(--paper);color:var(--ink);font-family:var(--sans);outline:none;transition:border .15s}
-.field input:focus{border-color:var(--accent)}
-.btn-primary{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px;font-family:var(--sans);transition:opacity .15s}
-.btn-primary:hover{opacity:.88}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.err-msg{font-size:13px;color:var(--warn);margin-top:10px;text-align:center;padding:8px;background:#fdf2ee;border-radius:6px}
-.login-toggle{text-align:center;margin-top:20px;font-size:13px;color:var(--ink3)}
-.login-toggle a{color:var(--accent);cursor:pointer}
-.login-toggle a:hover{text-decoration:underline}
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT PRINCIPAL
+   ═══════════════════════════════════════════════════════════════ */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-/* PAGE HEADERS */
-.page-header{margin-bottom:24px}
-.page-header h1{font-family:var(--serif);font-size:24px;color:var(--ink);font-weight:600}
-.page-header p{font-size:14px;color:var(--ink3);margin-top:4px}
+.topbar { background: var(--bg-nav); color: #fff; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar-brand { font-family: var(--font-serif); font-size: 20px; font-weight: 600; }
+.topbar-brand span { color: #fca5a5; font-style: italic; }
+.topbar-right { display: flex; align-items: center; gap: 15px; }
 
-/* TEXT CARDS */
-.text-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;cursor:pointer;transition:all .15s}
-.text-card:hover{border-color:var(--accent3);box-shadow:var(--shadow);transform:translateY(-1px)}
-.text-title{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);line-height:1.3}
-.text-meta{font-size:12px;color:var(--ink3);margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500}
-.tag.ensayo{background:#e8f4ee;color:var(--ok)}
-.tag.informe{background:#fdf2ee;color:var(--warn)}
-.tag.resumen{background:#f0e8f8;color:#6a2d8e}
-.tag.otro{background:var(--accent2);color:var(--accent)}
-.text-excerpt{font-size:13px;color:var(--ink2);line-height:1.65;margin-top:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.text-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--paper3)}
-.text-footer-left{display:flex;align-items:center;gap:8px}
-.comment-count{font-size:12px;color:var(--ink3)}
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; overflow-y: auto; transition: background 0.3s; }
+.nav-item { padding: 12px 24px; cursor: pointer; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 12px; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover { background: var(--bg-body); color: var(--text-main); }
+.nav-item.active { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); }
+.content { flex: 1; overflow-y: auto; padding: 32px 40px; }
 
-/* DETAIL */
-.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:20px;background:none;border:none;padding:0;font-family:var(--sans)}
-.back-btn:hover{color:var(--accent)}
-.detail-header{margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--paper3)}
-.detail-title{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:12px}
-.detail-meta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.detail-body{font-size:15px;line-height:1.9;color:var(--ink);font-family:var(--serif);margin-bottom:32px;white-space:pre-wrap}
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTES UI
+   ═══════════════════════════════════════════════════════════════ */
+button { font-family: var(--font-sans); cursor: pointer; border-radius: 6px; border: none; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #fff; padding: 10px 20px; font-weight: 500; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; }
+.btn-outline:hover { background: var(--bg-body); }
 
-/* COMMENTS */
-.comments-section h3{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--paper3)}
-.comment{display:flex;gap:12px;margin-bottom:16px}
-.comment-body{flex:1;background:var(--paper2);border-radius:0 8px 8px 8px;padding:12px 14px}
-.comment-author{font-size:12px;font-weight:500;color:var(--ink);margin-bottom:4px}
-.comment-date{font-size:11px;color:var(--ink3);margin-left:8px;font-weight:400}
-.comment-text{font-size:13px;color:var(--ink2);line-height:1.65}
-.comment-input-wrap{margin-top:20px;background:var(--paper2);border-radius:var(--r);padding:18px}
-.comment-input-wrap h4{font-size:13px;font-weight:500;color:var(--ink2);margin-bottom:10px}
-.comment-input{width:100%;padding:10px 12px;border:1px solid var(--paper3);border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--ink);background:var(--paper);resize:vertical;min-height:80px;outline:none;transition:border .15s}
-.comment-input:focus{border-color:var(--accent)}
-.btn-send{margin-top:10px;padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--sans);font-weight:500}
-.btn-send:hover{opacity:.85}
-.btn-send:disabled{opacity:.5;cursor:not-allowed}
+.page-header { margin-bottom: 30px; }
+.page-header h1 { font-family: var(--font-serif); font-size: 28px; color: var(--text-main); margin-bottom: 8px; }
 
-/* FORM */
-.form-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:28px}
-.form-row{margin-bottom:18px}
-.form-row label{display:block;font-size:12px;font-weight:500;color:var(--ink2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 14px;border:1px solid var(--paper3);border-radius:8px;font-size:14px;background:var(--paper);color:var(--ink);font-family:var(--sans);outline:none;transition:border .15s}
-.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent)}
-.form-row textarea{min-height:220px;resize:vertical;line-height:1.75;font-family:var(--serif);font-size:14px}
-.form-actions{display:flex;gap:10px;margin-top:8px;align-items:center}
-.btn-pub{padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--sans)}
-.btn-pub:hover{opacity:.88}
-.btn-pub:disabled{opacity:.5;cursor:not-allowed}
-.btn-sec{padding:10px 18px;background:transparent;color:var(--ink2);border:1px solid var(--paper3);border-radius:8px;font-size:14px;cursor:pointer;font-family:var(--sans)}
-.btn-sec:hover{border-color:var(--ink3);background:var(--paper2)}
+/* Tarjetas */
+.text-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r); padding: 24px; margin-bottom: 16px; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.2s; }
+.text-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.text-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
+.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.tag.ensayo { background: rgba(21, 128, 61, 0.1); color: var(--ok); }
+.tag.informe { background: rgba(180, 83, 9, 0.1); color: var(--warn); }
+.tag.resumen { background: rgba(109, 40, 217, 0.1); color: var(--purple); }
+.tag.otro { background: var(--accent-light); color: var(--accent); }
+.text-excerpt { color: var(--text-muted); line-height: 1.6; margin: 12px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-/* DASHBOARD */
-.welcome-banner{background:var(--ink);color:#fff;border-radius:12px;padding:26px 30px;margin-bottom:24px;position:relative;overflow:hidden}
-.welcome-banner::after{content:'✍';position:absolute;right:28px;top:50%;transform:translateY(-50%);font-size:52px;opacity:.12;pointer-events:none}
-.welcome-banner h2{font-family:var(--serif);font-size:21px;margin-bottom:6px}
-.welcome-banner p{font-size:13px;color:rgba(255,255,255,.6);line-height:1.65;max-width:480px}
-.welcome-cta{display:inline-block;margin-top:16px;padding:9px 20px;background:#fff;color:var(--ink);border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--sans)}
-.welcome-cta:hover{background:var(--accent2)}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
-.stat-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:16px 18px}
-.stat-label{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
-.stat-value{font-size:28px;font-weight:600;color:var(--ink);font-family:var(--serif)}
-.stat-sub{font-size:12px;color:var(--ink3);margin-top:3px}
-.section-title{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);margin-bottom:14px}
+/* Dashboard & Detalles */
+.welcome-banner { background: var(--bg-nav); color: #fff; border-radius: var(--r); padding: 32px; margin-bottom: 30px; }
+.welcome-banner h2 { font-family: var(--font-serif); font-size: 24px; margin-bottom: 10px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 40px; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--r); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: var(--accent); }
 
-/* FILTERS */
-.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
-.filter-btn{padding:6px 14px;border:1px solid var(--paper3);border-radius:20px;font-size:13px;cursor:pointer;background:var(--paper);color:var(--ink2);font-family:var(--sans);transition:all .15s}
-.filter-btn.active,.filter-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-.search-bar{margin-bottom:18px}
-.search-bar input{width:100%;padding:10px 14px;border:1px solid var(--paper3);border-radius:8px;font-size:14px;background:#fff;color:var(--ink);font-family:var(--sans);outline:none}
-.search-bar input:focus{border-color:var(--accent)}
+.detail-body { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.8; color: var(--text-main); margin: 30px 0; }
+.detail-body img { max-width: 100%; border-radius: var(--r); }
+.comments-section { border-top: 1px solid var(--border-color); padding-top: 30px; }
+.comment { background: var(--bg-body); padding: 16px; border-radius: var(--r); margin-bottom: 12px; border: 1px solid var(--border-color); }
 
-/* MEMBERS */
-.member-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:16px 18px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
-.member-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#fff;flex-shrink:0}
-.member-name{font-size:14px;font-weight:500;color:var(--ink)}
-.member-sub{font-size:12px;color:var(--ink3);margin-top:2px}
-.member-count{margin-left:auto;font-size:12px;color:var(--ink3);text-align:right}
+/* Formularios y Quill */
+input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-body); color: var(--text-main); font-family: var(--font-sans); outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+.ql-toolbar.ql-snow { border-color: var(--border-color) !important; background: var(--bg-sidebar); border-radius: 6px 6px 0 0; }
+.ql-container.ql-snow { border-color: var(--border-color) !important; font-family: var(--font-serif); font-size: 1.1rem; min-height: 300px; border-radius: 0 0 6px 6px; background: var(--bg-sidebar); }
+body.dark-mode .ql-snow .ql-stroke { stroke: var(--text-main); }
+body.dark-mode .ql-snow .ql-fill { fill: var(--text-main); }
+body.dark-mode .ql-snow .ql-picker { color: var(--text-main); }
 
-/* LANDING PÚBLICA */
-.landing-screen{position:fixed;inset:0;z-index:90;background:var(--paper);overflow-y:auto}
-.landing-hero{background:var(--ink);color:#fff;padding:60px 32px 50px;text-align:center;position:relative;overflow:hidden}
-.landing-hero::after{content:'✍';position:absolute;right:10%;top:50%;transform:translateY(-50%);font-size:120px;opacity:.06;pointer-events:none}
-.landing-hero h1{font-family:var(--serif);font-size:36px;margin-bottom:12px}
-.landing-hero p{font-size:16px;color:rgba(255,255,255,.65);max-width:520px;margin:0 auto;line-height:1.6}
-.landing-cta{display:inline-flex;align-items:center;gap:10px;margin-top:28px;padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--sans);text-decoration:none}
-.landing-cta:hover{opacity:.88}
-.landing-cta-sec{display:inline-flex;align-items:center;gap:10px;margin-top:28px;margin-left:12px;padding:12px 28px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--sans);text-decoration:none}
-.landing-cta-sec:hover{background:rgba(255,255,255,.1)}
-.landing-section{padding:40px 32px;max-width:900px;margin:0 auto}
-.landing-section h2{font-family:var(--serif);font-size:22px;color:var(--ink);margin-bottom:20px}
-.landing-textos{display:grid;gap:16px}
-.landing-footer{text-align:center;padding:32px;color:var(--ink3);font-size:13px;border-top:1px solid var(--paper3);margin-top:20px}
-.like-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:all .15s;color:var(--ink3)}
-.like-btn:hover{background:var(--paper2);transform:scale(1.1)}
-.like-btn.liked{color:#c42d2d}
-.like-count{font-size:12px;color:var(--ink3);margin-left:4px}
-
-/* UTILS */
-.empty-state{text-align:center;padding:52px 20px;color:var(--ink3)}
-.empty-icon{font-size:42px;margin-bottom:12px;opacity:.45}
-.empty-state p{font-size:14px;line-height:1.65}
-.empty-state a{color:var(--accent);cursor:pointer}
-.hidden{display:none!important}
-.delete-btn{margin-left:8px;padding:3px 10px;background:transparent;color:var(--warn);border:1px solid #f4c4b0;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
-.delete-btn:hover{background:#fdf2ee}
-.loading{text-align:center;padding:40px;color:var(--ink3);font-size:14px}
+/* Landing */
+.landing-screen { position: fixed; inset: 0; z-index: 90; background: var(--bg-body); overflow-y: auto; text-align: center; }
+.landing-hero { background: var(--bg-nav); color: #fff; padding: 100px 20px; }
+.landing-hero h1 { font-family: var(--font-serif); font-size: 48px; margin-bottom: 20px; }
+.google-btn { background: #fff; color: #333; display: inline-flex; align-items: center; gap: 10px; padding: 12px 24px; font-size: 16px; border-radius: 8px; font-weight: 500; margin-top: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.google-btn:hover { background: #f8f9fa; }
 </style>
-<base target="_blank">
 </head>
 <body>
+
 <div id="app">
 
-<!-- LANDING PÚBLICA -->
-<div id="landing-screen" class="landing-screen">
-  <div class="landing-hero">
-    <h1>Letras <span style="color:var(--accent3);font-style:italic">Académicas</span></h1>
-    <p>Alfabetización Académica · Instituto Belgrano<br>Espacio de escritura, lectura y devolución entre pares.</p>
-    <div>
-      <button class="landing-cta" onclick="showLoginScreen()">🔐 Ingresar a la plataforma</button>
-      <button class="landing-cta-sec" onclick="showLoginScreen();showRegister()">Registrarse</button>
+    <!-- LANDING PÚBLICA -->
+    <div id="landing-screen" class="landing-screen">
+        <div class="landing-hero">
+            <h1>Letras <span style="color:#fca5a5;font-style:italic">Académicas</span></h1>
+            <p style="font-size: 1.2rem; max-width: 600px; margin: 0 auto; color: #cbd5e1;">Alfabetización Académica · Instituto Belgrano<br>Espacio de escritura, lectura y devolución entre pares.</p>
+            <button class="google-btn" id="login-google-btn">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="width:20px;">
+                Ingresar con Google
+            </button>
+        </div>
+        <div style="max-width: 900px; margin: 60px auto; padding: 0 20px; text-align: left;">
+            <h2 style="font-family: var(--font-serif); margin-bottom: 30px;">📚 Textos destacados del instituto</h2>
+            <div id="landing-textos">Cargando textos...</div>
+        </div>
     </div>
-  </div>
 
-  <div class="landing-section">
-    <h2>📚 Textos destacados del instituto</h2>
-    <p style="font-size:14px;color:var(--ink3);margin-bottom:24px">Producciones seleccionadas por el cuerpo docente.</p>
-    <div id="landing-textos" class="landing-textos">
-      <div class="loading">Cargando textos destacados...</div>
+    <!-- APP SHELL -->
+    <div class="topbar hidden" id="topbar">
+        <div class="topbar-brand">Letras <span>Académicas</span></div>
+        <div class="topbar-right">
+            <button id="theme-toggle" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2);">🌓 Modo Oscuro</button>
+            <span id="topbar-uname" style="font-weight: 500;"></span>
+            <button class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2);" onclick="doLogout()">Salir</button>
+        </div>
     </div>
-  </div>
 
-  <div class="landing-footer">
-    Letras Académicas · Instituto Belgrano · 2026
-  </div>
-</div>
-
-<!-- LOGIN -->
-<div id="login-screen" class="hidden">
-  <div class="login-card">
-    <div class="login-logo">Letras <span>Académicas</span></div>
-    <div class="login-sub">Alfabetización Académica · Instituto Belgrano</div>
-    <div id="login-form">
-      <div class="field"><label>Usuario</label><input id="login-user" type="text" placeholder="nombre de usuario" autocomplete="username"></div>
-      <div class="field"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
-      <button class="btn-primary" id="btn-login" onclick="doLogin()">Ingresar</button>
-      <div id="login-err" class="err-msg hidden"></div>
-      <div class="login-toggle">¿No tenés cuenta? <a onclick="showRegister()">Registrate</a></div>
+    <div class="main hidden" id="main-layout">
+        <div class="sidebar">
+            <div style="padding:0 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Menú</div>
+            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">◈ Inicio</div>
+            <div class="nav-item" data-page="textos" onclick="navigate('textos')">◇ Textos</div>
+            <div class="nav-item" data-page="nuevo" onclick="navigate('nuevo')">＋ Publicar texto</div>
+            <div class="nav-item" data-page="miembros" onclick="navigate('miembros')">◎ Compañeros</div>
+            <div style="padding:20px 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Mi cuenta</div>
+            <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')">◻ Mis textos</div>
+        </div>
+        <div class="content" id="content-area"></div>
     </div>
-    <div id="register-form" class="hidden">
-      <div class="field"><label>Nombre completo</label><input id="reg-name" type="text" placeholder="Ej: María García"></div>
-      <div class="field"><label>Nombre de usuario</label><input id="reg-user" type="text" placeholder="sin espacios ni acentos"></div>
-      <div class="field"><label>Contraseña</label><input id="reg-pass" type="password" placeholder="mínimo 4 caracteres"></div>
-      <button class="btn-primary" id="btn-register" onclick="doRegister()">Crear cuenta</button>
-      <div id="reg-err" class="err-msg hidden"></div>
-      <div class="login-toggle"><a onclick="showLogin()">← Volver al ingreso</a></div>
-    </div>
-  </div>
-</div>
-
-<!-- APP SHELL -->
-<div class="topbar hidden" id="topbar">
-  <div class="topbar-brand">Letras <span>Académicas</span></div>
-  <div class="topbar-right">
-    <span class="user-name" id="topbar-uname"></span>
-    <div class="avatar" id="topbar-avatar"></div>
-    <button class="btn-logout" onclick="doLogout()">Salir</button>
-  </div>
-</div>
-
-<div class="main hidden" id="main-layout">
-  <div class="sidebar">
-    <div style="padding:14px 20px 6px;font-size:12px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.7px">Menú</div>
-    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
-      <span style="font-size:17px">◈</span> Inicio
-    </div>
-    <div class="nav-item" data-page="textos" onclick="navigate('textos')">
-      <span style="font-size:17px">◇</span> Textos
-      <span class="nav-badge" id="badge-textos">0</span>
-    </div>
-    <div class="nav-item" data-page="nuevo" onclick="navigate('nuevo')">
-      <span style="font-size:17px">＋</span> Publicar texto
-    </div>
-    <div class="nav-item" data-page="miembros" onclick="navigate('miembros')">
-      <span style="font-size:17px">◎</span> Compañeros
-    </div>
-    <div style="padding:20px 20px 6px;font-size:12px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.7px">Mi cuenta</div>
-    <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')">
-      <span style="font-size:17px">◻</span> Mis textos
-    </div>
-  </div>
-  <div class="content" id="content-area"></div>
-</div>
 
 </div>
+
+<!-- LIBRERÍAS EXTERNAS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// CONFIGURACIÓN SUPABASE
+// 1. CONFIGURACIÓN SUPABASE Y VARIABLES
 // ═══════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://xjrdjesezseuofjoqpzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P';
-
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ═══════════════════════════════════════════════════════════════
-// VARIABLES GLOBALES
-// ═══════════════════════════════════════════════════════════════
-const COLORS = ['#2d5a8e','#2d6e4a','#8e4a2d','#6a2d8e','#8e7a2d','#2d8e8a','#5a2d8e','#8e2d5a'];
-
-let currentUser = null;
+let currentUser = null; 
 let currentPage = 'dashboard';
-let currentFilter = 'todos';
-let currentSearch = '';
 let allTexts = [];
 let allUsers = [];
+let quillEditor = null;
 
-// ═══════════════════════════════════════════════════════════════
-// FUNCIONES AUXILIARES
-// ═══════════════════════════════════════════════════════════════
+// Utilidades DOM
 function showEl(id){document.getElementById(id).classList.remove('hidden')}
 function hideEl(id){document.getElementById(id).classList.add('hidden')}
-function setErr(id,msg){const e=document.getElementById(id);e.textContent=msg;e.classList.remove('hidden')}
-function hideErr(id){document.getElementById(id).classList.add('hidden')}
-function initials(n){return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
-function uColor(username){const u=allUsers.find(x=>x.username===username);return u?u.color:COLORS[0]}
-function uName(username){const u=allUsers.find(x=>x.username===username);return u?u.name:username}
+function formatDate(ts){return ts ? new Date(ts).toLocaleDateString('es-AR', {year:'numeric',month:'long',day:'numeric'}) : '';}
 
-function avatarDiv(username,size=24){
-  const col=uColor(username);const nm=uName(username);
-  const fs=Math.round(size*0.38);
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${col};display:inline-flex;align-items:center;justify-content:center;font-size:${fs}px;color:#fff;font-weight:500;flex-shrink:0">${initials(nm)}</div>`;
-}
-
-function setLoading(btnId,loading){
-  const btn=document.getElementById(btnId);
-  if(btn)btn.disabled=loading;
-}
+// Modo Oscuro
+const themeToggle = document.getElementById('theme-toggle');
+if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+});
 
 // ═══════════════════════════════════════════════════════════════
-// NAVEGACIÓN Y LOGIN UI
+// 2. AUTENTICACIÓN GOOGLE Y SINCRONIZACIÓN (TABLA PERFILES)
 // ═══════════════════════════════════════════════════════════════
-function showRegister(){hideEl('login-form');showEl('register-form')}
-function showLogin(){hideEl('register-form');showEl('login-form')}
+document.getElementById('login-google-btn').addEventListener('click', async () => {
+    await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+});
 
-function showLoginScreen(){
-  hideEl('landing-screen');
-  showEl('login-screen');
-  hideErr('login-err');
-  hideErr('reg-err');
+async function doLogout(){
+    await db.auth.signOut();
+    currentUser = null;
+    hideEl('topbar'); hideEl('main-layout'); showEl('landing-screen');
 }
 
-function showLanding(){
-  showEl('landing-screen');
-  hideEl('login-screen');
-  hideEl('topbar');
-  hideEl('main-layout');
-  renderLandingTextos();
-}
+db.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+        const email = session.user.email;
+        const name = session.user.user_metadata.full_name || email.split('@')[0];
+        const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
 
-function loginAs(u){
-  currentUser=u;
-  hideEl('login-screen');
-  hideEl('landing-screen');
-  showEl('topbar');
-  showEl('main-layout');
-  document.getElementById('topbar-uname').textContent=u.name;
-  const av=document.getElementById('topbar-avatar');
-  av.textContent=initials(u.name);av.style.background=u.color;
-  navigate('dashboard');
-}
+        // Buscar si ya existe en la tabla PERFILES
+        let { data: userProfile } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+        
+        if (!userProfile) {
+            // Insertar asociándolo a su UUID
+            const newProfile = {
+                id: session.user.id,
+                username: baseUsername,
+                name: name,
+                color: '#2d5a8e',
+                rol: (email === 'federicocabrera1978@gmail.com') ? 'profesor' : 'alumno'
+            };
+            await db.from('perfiles').insert([newProfile]);
+            userProfile = newProfile;
+        }
 
-function doLogout(){
-  currentUser=null;
-  showLanding();
-}
-
-function navigate(page){
-  currentPage=page;
-  if(page!=='textos'){currentFilter='todos';currentSearch='';}
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
-  document.getElementById('badge-textos').textContent=allTexts.length;
-  const ca=document.getElementById('content-area');
-  const pages={dashboard:renderDashboard,textos:renderTextos,nuevo:renderNuevo,miembros:renderMiembros,'mis-textos':renderMisTextos};
-  ca.innerHTML=(pages[page]||renderDashboard)();
-  ca.scrollTop=0;
-}
+        currentUser = userProfile;
+        document.getElementById('topbar-uname').textContent = currentUser.name;
+        
+        hideEl('landing-screen'); showEl('topbar'); showEl('main-layout');
+        await refreshData();
+        navigate('dashboard');
+    } else {
+        hideEl('topbar'); hideEl('main-layout'); showEl('landing-screen');
+        await refreshData();
+        renderLandingTextos();
+    }
+});
 
 // ═══════════════════════════════════════════════════════════════
-// SUPABASE: CARGAR DATOS
+// 3. CARGA DE DATOS (TEXTOS, PERFILES)
 // ═══════════════════════════════════════════════════════════════
-async function loadUsers(){
-  const {data,error}=await db.from('usuarios').select('*');
-  if(error){console.error('Error cargando usuarios:',error);return;}
-  allUsers=data||[];
-}
-
-async function loadTexts(){
-  const {data,error}=await db.from('textos').select('*').order('created_at',{ascending:false});
-  if(error){console.error('Error cargando textos:',error);return;}
-  allTexts=data||[];
-}
-
-async function loadComments(textId){
-  const {data,error}=await db.from('comentarios').select('*').eq('texto_id',textId).order('created_at',{ascending:true});
-  if(error){console.error('Error cargando comentarios:',error);return[];}
-  return data||[];
-}
-
-async function loadLikes(textId){
-  const {data,error}=await db.from('likes').select('*').eq('texto_id',textId);
-  if(error){console.error('Error cargando likes:',error);return[];}
-  return data||[];
-}
-
 async function refreshData(){
-  await loadUsers();
-  await loadTexts();
+    const {data: uData} = await db.from('perfiles').select('*');
+    allUsers = uData || [];
+    
+    const {data: tData} = await db.from('textos').select('*').order('created_at', {ascending: false});
+    allTexts = tData || [];
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SUPABASE: LOGIN Y REGISTRO
+// 4. VISTAS DE LA APLICACIÓN (ENRUTADOR)
 // ═══════════════════════════════════════════════════════════════
-async function doLogin(){
-  hideErr('login-err');
-  const u=document.getElementById('login-user').value.trim().toLowerCase();
-  const p=document.getElementById('login-pass').value;
-  if(!u||!p){setErr('login-err','Completá todos los campos.');return;}
-
-  setLoading('btn-login',true);
-  const {data,error}=await db.from('usuarios').select('*').eq('username',u).eq('password',p).maybeSingle();
-  setLoading('btn-login',false);
-
-  if(error||!data){setErr('login-err','Usuario o contraseña incorrectos.');return;}
-  loginAs(data);
+function navigate(page){
+    currentPage = page;
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+    const ca = document.getElementById('content-area');
+    
+    const pages = {
+        dashboard: renderDashboard,
+        textos: renderTextos,
+        nuevo: renderNuevo,
+        miembros: renderMiembros,
+        'mis-textos': renderMisTextos
+    };
+    
+    ca.innerHTML = (pages[page] || renderDashboard)();
+    
+    // Inicializar o Limpiar Quill
+    if(page === 'nuevo') {
+        if(!quillEditor) {
+            quillEditor = new Quill('#editor-container', {
+                theme: 'snow',
+                placeholder: 'Redacta tu texto académico aquí...',
+                modules: { toolbar: [ [{ 'header': [2, 3, false] }], ['bold', 'italic', 'blockquote'], [{'list': 'ordered'}, {'list': 'bullet'}], ['clean'] ] }
+            });
+        } else {
+            quillEditor.setContents([]); // Limpiar editor si ya existía
+        }
+    }
+    ca.scrollTop = 0;
 }
 
-async function doRegister(){
-  hideErr('reg-err');
-  const name=document.getElementById('reg-name').value.trim();
-  const u=document.getElementById('reg-user').value.trim().toLowerCase().replace(/\s+/g,'');
-  const p=document.getElementById('reg-pass').value;
-
-  if(!name||!u||!p){setErr('reg-err','Completá todos los campos.');return;}
-  if(p.length<4){setErr('reg-err','La contraseña debe tener al menos 4 caracteres.');return;}
-
-  setLoading('btn-register',true);
-
-  // Verificar si existe
-  const {data:exist}=await db.from('usuarios').select('username').eq('username',u).maybeSingle();
-  if(exist){setErr('reg-err','Ese nombre de usuario ya existe.');setLoading('btn-register',false);return;}
-
-  const newU={username:u,password:p,name,color:COLORS[allUsers.length%COLORS.length],rol:'alumno'};
-  const {error}=await db.from('usuarios').insert([newU]);
-  setLoading('btn-register',false);
-
-  if(error){setErr('reg-err','Error al crear cuenta: '+error.message);return;}
-
-  await loadUsers();
-  loginAs(newU);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// LANDING PÚBLICA
-// ═══════════════════════════════════════════════════════════════
-async function renderLandingTextos(){
-  const contenedor=document.getElementById('landing-textos');
-  contenedor.innerHTML='<div class="loading">Cargando textos destacados...</div>';
-
-  await refreshData();
-  const destacados=allTexts.filter(t=>t.destacado===true);
-
-  if(destacados.length===0){
-    contenedor.innerHTML='<div class="empty-state" style="padding:40px 20px"><div class="empty-icon">📖</div><p>Próximamente se publicarán los textos destacados del instituto.</p></div>';
-    return;
-  }
-
-  contenedor.innerHTML=destacados.map(t=>{
-    const nc=t.likes||0;
-    return `<div class="text-card" style="cursor:default">
-      <div class="text-title">${t.title}</div>
-      <div class="text-meta"><span class="tag ${t.type}">${t.type}</span><span>${formatDate(t.created_at)}</span><span>·</span><span>${t.author_name}</span></div>
-      <div class="text-excerpt">${t.body.replace(/\n/g,' ')}</div>
-      <div class="text-footer">
-        <div class="text-footer-left">${avatarDiv(t.author_username,24)}<span style="font-size:13px;color:var(--ink2);margin-left:6px">${t.author_name}</span></div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-size:12px;color:var(--ink3)">❤️ ${nc} me gusta</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function formatDate(ts){
-  if(!ts)return'';
-  const d=new Date(ts);
-  return d.toLocaleDateString('es-AR');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════════════════
+// VISTA: Dashboard
 function renderDashboard(){
-  const myT=allTexts.filter(t=>t.author_username===currentUser.username).length;
-  const totalC=allTexts.reduce((a,t)=>a+(t.comments?t.comments.length:0),0);
-  const recent=allTexts.slice(0,4);
-  return `<div class="welcome-banner">
-    <h2>Bienvenido/a, ${currentUser.name.split(' ')[0]}</h2>
-    <p>Tu espacio de escritura académica compartida. Publicá textos, leé a tus compañeros y dejá devoluciones constructivas.</p>
-    <button class="welcome-cta" onclick="navigate('nuevo')">✍ Publicar un texto</button>
-  </div>
-  <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Textos publicados</div><div class="stat-value">${allTexts.length}</div><div class="stat-sub">en la plataforma</div></div>
-    <div class="stat-card"><div class="stat-label">Mis textos</div><div class="stat-value">${myT}</div><div class="stat-sub">publicados por mí</div></div>
-    <div class="stat-card"><div class="stat-label">Comentarios</div><div class="stat-value">${totalC}</div><div class="stat-sub">devoluciones totales</div></div>
-    <div class="stat-card"><div class="stat-label">Compañeros</div><div class="stat-value">${allUsers.length}</div><div class="stat-sub">registrados</div></div>
-  </div>
-  <div class="section-title">Últimas publicaciones</div>
-  ${recent.length?recent.map(t=>cardHtml(t)).join(''):'<div class="empty-state"><div class="empty-icon">📄</div><p>Todavía no hay textos.<br>¡Sé el primero en publicar!</p></div>'}`;
+    const myT = allTexts.filter(t => t.author_username === currentUser.username).length;
+    const recent = allTexts.slice(0, 3);
+    return `
+        <div class="welcome-banner">
+            <h2>Bienvenido/a, ${currentUser.name.split(' ')[0]}</h2>
+            <p style="opacity: 0.9; max-width: 600px;">Tu espacio de escritura académica compartida. Publicá textos, leé a tus compañeros y dejá devoluciones constructivas.</p>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value">${allTexts.length}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Textos en plataforma</div></div>
+            <div class="stat-card"><div class="stat-value">${myT}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Tus publicaciones</div></div>
+            <div class="stat-card"><div class="stat-value">${allUsers.length}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Compañeros</div></div>
+        </div>
+        <h3 style="font-family:var(--font-serif); margin-bottom: 20px;">Últimas publicaciones</h3>
+        ${recent.length ? recent.map(t => cardHtml(t)).join('') : '<p>No hay publicaciones aún.</p>'}
+    `;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TEXTOS (LISTADO)
-// ═══════════════════════════════════════════════════════════════
+// VISTA: Todos los Textos
 function renderTextos(){
-  const types=['todos','ensayo','informe','resumen','otro'];
-  let list=[...allTexts];
-  if(currentFilter!=='todos')list=list.filter(t=>t.type===currentFilter);
-  if(currentSearch)list=list.filter(t=>t.title.toLowerCase().includes(currentSearch.toLowerCase())||t.body.toLowerCase().includes(currentSearch.toLowerCase())||t.author_name.toLowerCase().includes(currentSearch.toLowerCase()));
-  return `<div class="page-header"><h1>Textos académicos</h1><p>Leé, comentá y aprendé de las producciones de tus compañeros.</p></div>
-  <div class="search-bar"><input type="text" id="search-input" placeholder="Buscar por título, autor o contenido..." value="${currentSearch}" oninput="applySearch(this.value)"></div>
-  <div class="filter-bar">${types.map(tp=>`<button class="filter-btn${currentFilter===tp?' active':''}" onclick="applyFilter('${tp}')">${tp.charAt(0).toUpperCase()+tp.slice(1)}</button>`).join('')}</div>
-  ${list.length?list.map(t=>cardHtml(t)).join(''):'<div class="empty-state"><div class="empty-icon">🔍</div><p>No hay textos que coincidan con tu búsqueda.</p></div>'}`;
+    return `
+        <div class="page-header">
+            <h1>Biblioteca Virtual</h1>
+            <p style="color:var(--text-muted)">Explora y comenta las producciones de tus compañeros.</p>
+        </div>
+        <div style="display:grid; gap:20px;">
+            ${allTexts.length ? allTexts.map(t => cardHtml(t)).join('') : '<p>Aún no hay textos publicados.</p>'}
+        </div>
+    `;
 }
 
-function applyFilter(f){currentFilter=f;document.getElementById('content-area').innerHTML=renderTextos()}
-function applySearch(s){currentSearch=s;document.getElementById('content-area').innerHTML=renderTextos();setTimeout(()=>document.getElementById('search-input').focus(),0)}
-
+// Generador de Tarjeta
 function cardHtml(t){
-  const likes=t.likes||0;
-  const yaLike=currentUser&&t.likedBy&&t.likedBy.includes(currentUser.username);
-  return `<div class="text-card" onclick="openText('${t.id}')">
-    <div class="text-title">${t.title}</div>
-    <div class="text-meta"><span class="tag ${t.type}">${t.type}</span><span>${formatDate(t.created_at)}</span>${t.destacado?'<span style="color:#d4a017">⭐ Destacado</span>':''}</div>
-    <div class="text-excerpt">${t.body.replace(/\n/g,' ')}</div>
-    <div class="text-footer">
-      <div class="text-footer-left">${avatarDiv(t.author_username,24)}<span style="font-size:13px;color:var(--ink2);margin-left:6px">${t.author_name}</span></div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:12px;color:var(--ink3)">${yaLike?'❤️':'🤍'} ${likes}</span>
-      </div>
-    </div>
-  </div>`;
+    // Extraer texto plano para la vista previa
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = t.body;
+    const plainText = tempDiv.textContent || tempDiv.innerText || "";
+    
+    return `
+    <div class="text-card" onclick="openText('${t.id}')">
+        <div class="text-title">${t.title}</div>
+        <div style="margin-bottom: 10px;">
+            <span class="tag ${t.type}">${t.type}</span>
+            <span style="font-size:13px; color:var(--text-muted); margin-left:10px;">${formatDate(t.created_at)}</span>
+            ${t.destacado ? '<span style="font-size:13px; color:#d97706; margin-left:10px; font-weight:600;">⭐ Destacado</span>' : ''}
+        </div>
+        <div class="text-excerpt">${plainText}</div>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size: 14px; font-weight:500;">👤 ${t.author_name}</span>
+            <span style="font-size: 14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
+        </div>
+    </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DETALLE DE TEXTO
-// ═══════════════════════════════════════════════════════════════
-async function openText(id){
-  const t=allTexts.find(x=>x.id===id);if(!t)return;
-  const prevPage=currentPage;
-  const ca=document.getElementById('content-area');
-
-  // Cargar comentarios y likes frescos
-  const coms=await loadComments(id);
-  const likesData=await loadLikes(id);
-  t.comments=coms;
-  t.likedBy=likesData.map(l=>l.user_username);
-  t.likes=likesData.length;
-
-  const isOwner=t.author_username===currentUser.username;
-  const yaLike=currentUser&&t.likedBy&&t.likedBy.includes(currentUser.username);
-
-  ca.innerHTML=`<button class="back-btn" onclick="navigate('${prevPage}')">← Volver</button>
-  <div class="detail-header">
-    <div class="detail-title">${t.title}</div>
-    <div class="detail-meta">
-      <span class="tag ${t.type}">${t.type}</span>
-      ${avatarDiv(t.author_username,22)}
-      <span style="font-size:13px;color:var(--ink2);margin-left:6px">${t.author_name}</span>
-      <span style="font-size:12px;color:var(--ink3)">${formatDate(t.created_at)}</span>
-      <span style="margin-left:12px">
-        <button class="like-btn ${yaLike?'liked':''}" onclick="event.stopPropagation();toggleLike('${t.id}')">
-          ${yaLike?'❤️':'🤍'} <span class="like-count">${t.likes||0}</span>
-        </button>
-      </span>
-      ${isOwner?`<button class="delete-btn" onclick="deleteText('${t.id}')">Eliminar texto</button>`:''}
-      ${currentUser.rol==='profesor'?`<button class="delete-btn" onclick="toggleDestacado('${t.id}')" style="color:var(--accent);border-color:var(--accent3);margin-left:8px">${t.destacado?'⭐ Quitar destacado':'⭐ Destacar texto'}</button>`:''}
-    </div>
-  </div>
-  <div class="detail-body">${t.body}</div>
-  <div class="comments-section">
-    <h3>Devoluciones y comentarios (${coms.length})</h3>
-    ${coms.length?coms.map(c=>`<div class="comment">
-      ${avatarDiv(c.author_username,32)}
-      <div class="comment-body">
-        <div class="comment-author">${c.author_name}<span class="comment-date">${formatDate(c.created_at)}</span></div>
-        <div class="comment-text">${c.body}</div>
-      </div>
-    </div>`).join(''):'<p style="font-size:13px;color:var(--ink3);margin-bottom:18px">Todavía no hay comentarios. ¡Sé el primero en dejar una devolución!</p>'}
-    <div class="comment-input-wrap">
-      <h4>Dejá tu devolución</h4>
-      <textarea class="comment-input" id="new-comment" placeholder="Escribí tu comentario. Señalá qué funciona bien y qué podrías sugerir mejorar..."></textarea>
-      <br><button class="btn-send" id="btn-comment" onclick="submitComment('${t.id}')">Enviar comentario</button>
-    </div>
-  </div>`;
-  ca.scrollTop=0;
-}
-
-async function toggleLike(textId){
-  if(!currentUser)return;
-  const t=allTexts.find(x=>x.id===textId);if(!t)return;
-  if(!t.likedBy)t.likedBy=[];
-
-  const yaDioLike=t.likedBy.includes(currentUser.username);
-
-  if(yaDioLike){
-    // Quitar like
-    await db.from('likes').delete().eq('texto_id',textId).eq('user_username',currentUser.username);
-    t.likedBy=t.likedBy.filter(u=>u!==currentUser.username);
-    t.likes=(t.likes||1)-1;
-  }else{
-    // Dar like
-    await db.from('likes').insert([{texto_id:textId,user_username:currentUser.username}]);
-    t.likedBy.push(currentUser.username);
-    t.likes=(t.likes||0)+1;
-  }
-
-  // Actualizar contador en textos
-  await db.from('textos').update({likes:t.likes}).eq('id',textId);
-  openText(textId);
-}
-
-async function toggleDestacado(textId){
-  if(!currentUser||currentUser.rol!=='profesor')return;
-  const t=allTexts.find(x=>x.id===textId);if(!t)return;
-  const nuevo=!t.destacado;
-  await db.from('textos').update({destacado:nuevo}).eq('id',textId);
-  t.destacado=nuevo;
-  openText(textId);
-}
-
-async function submitComment(id){
-  const txt=document.getElementById('new-comment').value.trim();if(!txt)return;
-  const btn=document.getElementById('btn-comment');btn.disabled=true;
-
-  await db.from('comentarios').insert([{
-    texto_id:id,
-    author_username:currentUser.username,
-    author_name:currentUser.name,
-    body:txt,
-    created_at:new Date().toISOString()
-  }]);
-
-  btn.disabled=false;
-  openText(id);
-  setTimeout(()=>document.getElementById('content-area').scrollTop=9999,100);
-}
-
-async function deleteText(id){
-  if(!confirm('¿Eliminar este texto? Esta acción no se puede deshacer.'))return;
-  await db.from('comentarios').delete().eq('texto_id',id);
-  await db.from('likes').delete().eq('texto_id',id);
-  await db.from('textos').delete().eq('id',id);
-  allTexts=allTexts.filter(t=>t.id!==id);
-  navigate('mis-textos');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// NUEVO TEXTO
-// ═══════════════════════════════════════════════════════════════
+// VISTA: Nuevo Texto
 function renderNuevo(){
-  return `<div class="page-header"><h1>Publicar un texto</h1><p>Compartí tu producción académica con el grupo.</p></div>
-  <div class="form-card">
-    <div class="form-row"><label>Título del texto</label><input id="f-title" type="text" placeholder="Título de tu trabajo académico"></div>
-    <div class="form-row"><label>Tipo de texto</label>
-      <select id="f-type">
-        <option value="ensayo">Ensayo</option>
-        <option value="informe">Informe</option>
-        <option value="resumen">Resumen</option>
-        <option value="otro">Otro</option>
-      </select>
-    </div>
-    <div class="form-row"><label>Texto</label><textarea id="f-body" placeholder="Escribí o pegá tu texto aquí..."></textarea></div>
-    <div id="form-err" class="err-msg hidden" style="margin-bottom:12px"></div>
-    <div class="form-actions">
-      <button class="btn-pub" id="btn-pub" onclick="submitText()">Publicar texto</button>
-      <button class="btn-sec" onclick="navigate('textos')">Cancelar</button>
-    </div>
-  </div>`;
+    return `
+    <div class="page-header"><h1>Publicar un texto</h1></div>
+    <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:8px; font-weight:500;">Título</label>
+            <input type="text" id="f-title" placeholder="Ej: Análisis del Quijote">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:8px; font-weight:500;">Tipo de texto</label>
+            <select id="f-type">
+                <option value="ensayo">Ensayo</option>
+                <option value="informe">Informe</option>
+                <option value="resumen">Resumen</option>
+                <option value="otro">Otro</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:8px; font-weight:500;">Contenido</label>
+            <div id="editor-container"></div>
+        </div>
+        <button class="btn-primary" onclick="submitText()" id="btn-pub">Publicar en la plataforma</button>
+    </div>`;
 }
 
 async function submitText(){
-  hideErr('form-err');
-  const title=document.getElementById('f-title').value.trim();
-  const type=document.getElementById('f-type').value;
-  const body=document.getElementById('f-body').value.trim();
-  if(!title||!body){setErr('form-err','Completá el título y el texto.');return;}
+    const title = document.getElementById('f-title').value.trim();
+    const type = document.getElementById('f-type').value;
+    const bodyHTML = quillEditor.root.innerHTML; 
+    const textPlain = quillEditor.getText().trim();
 
-  document.getElementById('btn-pub').disabled=true;
+    if(!title || !textPlain) { alert('Por favor, completa el título y el contenido.'); return; }
+    document.getElementById('btn-pub').disabled = true;
 
-  const now=new Date().toISOString();
-  const {error}=await db.from('textos').insert([{
-    title:title,
-    author_username:currentUser.username,
-    author_name:currentUser.name,
-    type:type,
-    date:now.split('T')[0],
-    body:body,
-    destacado:false,
-    likes:0,
-    created_at:now
-  }]);
+    await db.from('textos').insert([{
+        title: title, author_username: currentUser.username, author_name: currentUser.name,
+        type: type, body: bodyHTML, destacado: false, likes: 0, date: new Date().toISOString()
+    }]);
 
-  document.getElementById('btn-pub').disabled=false;
-
-  if(error){setErr('form-err','Error al publicar: '+error.message);return;}
-
-  await loadTexts();
-  navigate('textos');
+    await refreshData();
+    navigate('textos');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MIEMBROS
-// ═══════════════════════════════════════════════════════════════
-function renderMiembros(){
-  return `<div class="page-header"><h1>Compañeros</h1><p>Todos los miembros registrados en la plataforma.</p></div>
-  ${allUsers.map(u=>{
-    const nt=allTexts.filter(t=>t.author_username===u.username).length;
-    const nc=allTexts.reduce((a,t)=>a+(t.comments||[]).filter(c=>c.author_username===u.username).length,0);
-    return `<div class="member-card">
-      <div class="member-avatar" style="background:${u.color}">${initials(u.name)}</div>
-      <div style="flex:1">
-        <div class="member-name">${u.name}${u.username===currentUser.username?' <span style="font-size:11px;color:var(--ink3);font-weight:400">(vos)</span>':''}${u.rol==='profesor'?' <span style="font-size:11px;color:var(--accent);font-weight:400">· Profesor/a</span>':''}</div>
-        <div class="member-sub">@${u.username}</div>
-      </div>
-      <div class="member-count"><div>${nt} texto${nt!==1?'s':''}</div><div style="margin-top:2px">${nc} comentario${nc!==1?'s':''}</div></div>
+// VISTA: Detalle del Texto
+async function openText(id){
+    const t = allTexts.find(x => x.id === id); if(!t) return;
+    const ca = document.getElementById('content-area');
+    
+    // Cargar comentarios
+    const {data: coms} = await db.from('comentarios').select('*').eq('texto_id', id).order('created_at', {ascending: true});
+    
+    // Check Like
+    const {data: myLike} = await db.from('likes').select('*').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle();
+    const yaDioLike = !!myLike;
+
+    ca.innerHTML = `
+    <button class="btn-outline" style="margin-bottom: 20px;" onclick="navigate('${currentPage}')">← Volver</button>
+    
+    <div style="margin-bottom:30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+        <h1 style="font-family:var(--font-serif); font-size: 36px; line-height: 1.2; margin-bottom: 15px;">${t.title}</h1>
+        <div style="display:flex; gap: 15px; align-items:center; flex-wrap:wrap;">
+            <span class="tag ${t.type}">${t.type}</span>
+            <span style="color:var(--text-muted);">${formatDate(t.created_at)}</span>
+            <span style="font-weight:500;">👤 ${t.author_name}</span>
+            <button class="btn-outline" onclick="toggleLike('${t.id}', ${yaDioLike})" style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
+                ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
+            </button>
+            ${currentUser.rol === 'profesor' ? `<button class="btn-outline" onclick="toggleDestacado('${t.id}', ${t.destacado})">${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}</button>` : ''}
+            ${currentUser.username === t.author_username ? `<button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" onclick="deleteText('${t.id}')">Eliminar</button>` : ''}
+        </div>
+    </div>
+    
+    <div class="detail-body">${t.body}</div> 
+    
+    <div class="comments-section">
+        <h3 style="font-family:var(--font-serif); margin-bottom: 20px;">Devoluciones (${coms ? coms.length : 0})</h3>
+        ${(coms && coms.length) ? coms.map(c => `
+            <div class="comment">
+                <div style="font-weight:600; font-size:13px; margin-bottom:5px;">${c.author_name} <span style="font-weight:400; color:var(--text-muted); margin-left:10px;">${formatDate(c.created_at)}</span></div>
+                <div style="color:var(--text-main); line-height:1.6;">${c.body}</div>
+            </div>
+        `).join('') : '<p style="color:var(--text-muted); margin-bottom: 20px;">Aún no hay devoluciones. ¡Sé el primero!</p>'}
+        
+        <div style="margin-top: 30px; background:var(--bg-card); padding:20px; border-radius:var(--r); border:1px solid var(--border-color);">
+            <h4 style="margin-bottom:10px;">Añadir devolución</h4>
+            <textarea id="new-comment" style="min-height:100px; margin-bottom:10px;" placeholder="Escribe un comentario constructivo..."></textarea>
+            <button class="btn-primary" id="btn-comment" onclick="submitComment('${t.id}')">Enviar comentario</button>
+        </div>
     </div>`;
-  }).join('')}`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MIS TEXTOS
-// ═══════════════════════════════════════════════════════════════
+async function toggleLike(textId, yaDioLike){
+    const t = allTexts.find(x => x.id === textId);
+    if(yaDioLike){
+        await db.from('likes').delete().eq('texto_id', textId).eq('user_username', currentUser.username);
+        t.likes = Math.max(0, (t.likes || 1) - 1);
+    } else {
+        await db.from('likes').insert([{texto_id: textId, user_username: currentUser.username}]);
+        t.likes = (t.likes || 0) + 1;
+    }
+    await db.from('textos').update({likes: t.likes}).eq('id', textId);
+    openText(textId); 
+}
+
+async function toggleDestacado(textId, isDestacado){
+    await db.from('textos').update({destacado: !isDestacado}).eq('id', textId);
+    await refreshData();
+    openText(textId);
+}
+
+async function submitComment(id){
+    const txt = document.getElementById('new-comment').value.trim(); if(!txt) return;
+    document.getElementById('btn-comment').disabled = true;
+    await db.from('comentarios').insert([{texto_id: id, author_username: currentUser.username, author_name: currentUser.name, body: txt}]);
+    openText(id);
+}
+
+async function deleteText(id){
+    if(!confirm('¿Estás seguro de eliminar este texto permanentemente?')) return;
+    
+    // Primero borrar likes y comentarios en cascada manual por seguridad (si no lo tienes configurado en la BDD)
+    await db.from('likes').delete().eq('texto_id', id);
+    await db.from('comentarios').delete().eq('texto_id', id);
+    // Luego borrar el texto
+    await db.from('textos').delete().eq('id', id);
+    
+    await refreshData();
+    navigate('mis-textos');
+}
+
+// VISTA: Compañeros
+function renderMiembros(){
+    return `<div class="page-header"><h1>Compañeros</h1></div>
+    <div style="display:grid; gap:15px;">
+        ${allUsers.map(u => `
+            <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:600;">${u.name} ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesor</span>' : ''}</div>
+                    <div style="color:var(--text-muted); font-size:13px;">@${u.username}</div>
+                </div>
+            </div>
+        `).join('')}
+    </div>`;
+}
+
 function renderMisTextos(){
-  const mine=allTexts.filter(t=>t.author_username===currentUser.username);
-  return `<div class="page-header"><h1>Mis textos</h1><p>Las producciones que publicaste en la plataforma.</p></div>
-  ${mine.length?mine.map(t=>cardHtml(t)).join(''):'<div class="empty-state"><div class="empty-icon">✍️</div><p>Todavía no publicaste ningún texto.<br><a onclick="navigate(\'nuevo\')">Publicá el primero</a>.</p></div>'}`;
+    const mine = allTexts.filter(t => t.author_username === currentUser.username);
+    return `<div class="page-header"><h1>Mis Textos</h1></div>
+            <div style="display:grid; gap:20px;">${mine.length ? mine.map(t => cardHtml(t)).join('') : '<p>No tienes textos publicados.</p>'}</div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// INICIALIZACIÓN
-// ═══════════════════════════════════════════════════════════════
-async function init(){
-  // Crear usuario profesor si no existe
-  const {data:prof}=await db.from('usuarios').select('*').eq('username','profesor').maybeSingle();
-  if(!prof){
-    await db.from('usuarios').insert([{
-      username:'profesor',
-      password:'instituto2026',
-      name:'Profesor/a',
-      color:'#8e2d5a',
-      rol:'profesor',
-      created_at:new Date().toISOString()
-    }]);
-  }
-
-  // Crear usuario demo si no existe
-  const {data:demo}=await db.from('usuarios').select('*').eq('username','demo').maybeSingle();
-  if(!demo){
-    await db.from('usuarios').insert([{
-      username:'demo',
-      password:'demo',
-      name:'Demo Usuario',
-      color:COLORS[0],
-      rol:'alumno',
-      created_at:new Date().toISOString()
-    }]);
-  }
-
-  await refreshData();
-  showLanding();
+function renderLandingTextos(){
+    const destacados = allTexts.filter(t => t.destacado);
+    const container = document.getElementById('landing-textos');
+    if(destacados.length === 0){ container.innerHTML = '<p style="color:var(--text-muted);">Próximamente se publicarán los textos destacados.</p>'; return; }
+    container.innerHTML = destacados.map(t => cardHtml(t)).join('');
 }
-
-// Event listeners
-document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus()});
-document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
 // Iniciar
-init();
+db.auth.getSession().then(({ data: { session } }) => {
+    if(!session) { refreshData().then(() => renderLandingTextos()); }
+});
+
 </script>
 </body>
 </html>
