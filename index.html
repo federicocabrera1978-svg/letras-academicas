@@ -268,7 +268,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 const SUPABASE_URL = 'https://xjrdjesezseuofjoqpzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ═══════════════════════════════════════════════════════════════
 // VARIABLES GLOBALES
@@ -357,25 +357,25 @@ function navigate(page){
 // SUPABASE: CARGAR DATOS
 // ═══════════════════════════════════════════════════════════════
 async function loadUsers(){
-  const {data,error}=await supabase.from('usuarios').select('*');
+  const {data,error}=await db.from('usuarios').select('*');
   if(error){console.error('Error cargando usuarios:',error);return;}
   allUsers=data||[];
 }
 
 async function loadTexts(){
-  const {data,error}=await supabase.from('textos').select('*').order('created_at',{ascending:false});
+  const {data,error}=await db.from('textos').select('*').order('created_at',{ascending:false});
   if(error){console.error('Error cargando textos:',error);return;}
   allTexts=data||[];
 }
 
 async function loadComments(textId){
-  const {data,error}=await supabase.from('comentarios').select('*').eq('texto_id',textId).order('created_at',{ascending:true});
+  const {data,error}=await db.from('comentarios').select('*').eq('texto_id',textId).order('created_at',{ascending:true});
   if(error){console.error('Error cargando comentarios:',error);return[];}
   return data||[];
 }
 
 async function loadLikes(textId){
-  const {data,error}=await supabase.from('likes').select('*').eq('texto_id',textId);
+  const {data,error}=await db.from('likes').select('*').eq('texto_id',textId);
   if(error){console.error('Error cargando likes:',error);return[];}
   return data||[];
 }
@@ -395,7 +395,7 @@ async function doLogin(){
   if(!u||!p){setErr('login-err','Completá todos los campos.');return;}
 
   setLoading('btn-login',true);
-  const {data,error}=await supabase.from('usuarios').select('*').eq('username',u).eq('password',p).single();
+  const {data,error}=await db.from('usuarios').select('*').eq('username',u).eq('password',p).single();
   setLoading('btn-login',false);
 
   if(error||!data){setErr('login-err','Usuario o contraseña incorrectos.');return;}
@@ -414,11 +414,11 @@ async function doRegister(){
   setLoading('btn-register',true);
 
   // Verificar si existe
-  const {data:exist}=await supabase.from('usuarios').select('username').eq('username',u).single();
+  const {data:exist}=await db.from('usuarios').select('username').eq('username',u).single();
   if(exist){setErr('reg-err','Ese nombre de usuario ya existe.');setLoading('btn-register',false);return;}
 
   const newU={username:u,password:p,name,color:COLORS[allUsers.length%COLORS.length],rol:'alumno'};
-  const {error}=await supabase.from('usuarios').insert([newU]);
+  const {error}=await db.from('usuarios').insert([newU]);
   setLoading('btn-register',false);
 
   if(error){setErr('reg-err','Error al crear cuenta: '+error.message);return;}
@@ -582,18 +582,18 @@ async function toggleLike(textId){
 
   if(yaDioLike){
     // Quitar like
-    await supabase.from('likes').delete().eq('texto_id',textId).eq('user_username',currentUser.username);
+    await db.from('likes').delete().eq('texto_id',textId).eq('user_username',currentUser.username);
     t.likedBy=t.likedBy.filter(u=>u!==currentUser.username);
     t.likes=(t.likes||1)-1;
   }else{
     // Dar like
-    await supabase.from('likes').insert([{texto_id:textId,user_username:currentUser.username}]);
+    await db.from('likes').insert([{texto_id:textId,user_username:currentUser.username}]);
     t.likedBy.push(currentUser.username);
     t.likes=(t.likes||0)+1;
   }
 
   // Actualizar contador en textos
-  await supabase.from('textos').update({likes:t.likes}).eq('id',textId);
+  await db.from('textos').update({likes:t.likes}).eq('id',textId);
   openText(textId);
 }
 
@@ -601,7 +601,7 @@ async function toggleDestacado(textId){
   if(!currentUser||currentUser.rol!=='profesor')return;
   const t=allTexts.find(x=>x.id===textId);if(!t)return;
   const nuevo=!t.destacado;
-  await supabase.from('textos').update({destacado:nuevo}).eq('id',textId);
+  await db.from('textos').update({destacado:nuevo}).eq('id',textId);
   t.destacado=nuevo;
   openText(textId);
 }
@@ -610,7 +610,7 @@ async function submitComment(id){
   const txt=document.getElementById('new-comment').value.trim();if(!txt)return;
   const btn=document.getElementById('btn-comment');btn.disabled=true;
 
-  await supabase.from('comentarios').insert([{
+  await db.from('comentarios').insert([{
     texto_id:id,
     author_username:currentUser.username,
     author_name:currentUser.name,
@@ -625,9 +625,9 @@ async function submitComment(id){
 
 async function deleteText(id){
   if(!confirm('¿Eliminar este texto? Esta acción no se puede deshacer.'))return;
-  await supabase.from('comentarios').delete().eq('texto_id',id);
-  await supabase.from('likes').delete().eq('texto_id',id);
-  await supabase.from('textos').delete().eq('id',id);
+  await db.from('comentarios').delete().eq('texto_id',id);
+  await db.from('likes').delete().eq('texto_id',id);
+  await db.from('textos').delete().eq('id',id);
   allTexts=allTexts.filter(t=>t.id!==id);
   navigate('mis-textos');
 }
@@ -666,7 +666,7 @@ async function submitText(){
   document.getElementById('btn-pub').disabled=true;
 
   const now=new Date().toISOString();
-  const {error}=await supabase.from('textos').insert([{
+  const {error}=await db.from('textos').insert([{
     title:title,
     author_username:currentUser.username,
     author_name:currentUser.name,
@@ -719,9 +719,9 @@ function renderMisTextos(){
 // ═══════════════════════════════════════════════════════════════
 async function init(){
   // Crear usuario profesor si no existe
-  const {data:prof}=await supabase.from('usuarios').select('*').eq('username','profesor').single();
+  const {data:prof}=await db.from('usuarios').select('*').eq('username','profesor').single();
   if(!prof){
-    await supabase.from('usuarios').insert([{
+    await db.from('usuarios').insert([{
       username:'profesor',
       password:'instituto2026',
       name:'Profesor/a',
@@ -732,9 +732,9 @@ async function init(){
   }
 
   // Crear usuario demo si no existe
-  const {data:demo}=await supabase.from('usuarios').select('*').eq('username','demo').single();
+  const {data:demo}=await db.from('usuarios').select('*').eq('username','demo').single();
   if(!demo){
-    await supabase.from('usuarios').insert([{
+    await db.from('usuarios').insert([{
       username:'demo',
       password:'demo',
       name:'Demo Usuario',
