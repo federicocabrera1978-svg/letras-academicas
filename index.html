@@ -395,7 +395,7 @@ async function doLogin(){
   if(!u||!p){setErr('login-err','Completá todos los campos.');return;}
 
   setLoading('btn-login',true);
-  const {data,error}=await db.from('usuarios').select('*').eq('username',u).eq('password',p).single();
+  const {data,error}=await db.from('usuarios').select('*').eq('username',u).eq('password',p).maybeSingle();
   setLoading('btn-login',false);
 
   if(error||!data){setErr('login-err','Usuario o contraseña incorrectos.');return;}
@@ -414,7 +414,7 @@ async function doRegister(){
   setLoading('btn-register',true);
 
   // Verificar si existe
-  const {data:exist}=await db.from('usuarios').select('username').eq('username',u).single();
+  const {data:exist}=await db.from('usuarios').select('username').eq('username',u).maybeSingle();
   if(exist){setErr('reg-err','Ese nombre de usuario ya existe.');setLoading('btn-register',false);return;}
 
   const newU={username:u,password:p,name,color:COLORS[allUsers.length%COLORS.length],rol:'alumno'};
@@ -719,7 +719,7 @@ function renderMisTextos(){
 // ═══════════════════════════════════════════════════════════════
 async function init(){
   // Crear usuario profesor si no existe
-  const {data:prof}=await db.from('usuarios').select('*').eq('username','profesor').single();
+  const {data:prof}=await db.from('usuarios').select('*').eq('username','profesor').maybeSingle();
   if(!prof){
     await db.from('usuarios').insert([{
       username:'profesor',
@@ -732,7 +732,7 @@ async function init(){
   }
 
   // Crear usuario demo si no existe
-  const {data:demo}=await db.from('usuarios').select('*').eq('username','demo').single();
+  const {data:demo}=await db.from('usuarios').select('*').eq('username','demo').maybeSingle();
   if(!demo){
     await db.from('usuarios').insert([{
       username:'demo',
