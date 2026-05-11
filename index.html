@@ -21,7 +21,667 @@
 
 <style>
 :root{
---bg:#fbfaf8;
+--bg:#fbfaf8;<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Letras Académicas</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<style>
+
+:root{
+    --bg:#f8fafc;
+    --card:#ffffff;
+    --nav:#0f172a;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --accent:#8b1818;
+    --accent-hover:#6a1212;
+    --radius:12px;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Inter,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+}
+
+.hidden{
+    display:none!important;
+}
+
+.topbar{
+    height:60px;
+    background:var(--nav);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 20px;
+}
+
+.brand{
+    font-size:22px;
+    font-family:Lora,serif;
+    font-weight:600;
+}
+
+.main{
+    display:flex;
+    height:calc(100vh - 60px);
+}
+
+.sidebar{
+    width:240px;
+    background:white;
+    border-right:1px solid var(--border);
+    padding:20px 0;
+    overflow:auto;
+}
+
+.nav-item{
+    padding:14px 24px;
+    cursor:pointer;
+    transition:.2s;
+    font-weight:500;
+}
+
+.nav-item:hover{
+    background:#f1f5f9;
+}
+
+.nav-item.active{
+    background:#fee2e2;
+    color:var(--accent);
+}
+
+.content{
+    flex:1;
+    overflow:auto;
+    padding:30px;
+}
+
+.card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:18px;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.card:hover{
+    border-color:var(--accent);
+    transform:translateY(-2px);
+}
+
+.card-title{
+    font-size:22px;
+    font-family:Lora,serif;
+    margin-bottom:10px;
+}
+
+.card-text{
+    color:var(--muted);
+    line-height:1.6;
+}
+
+.avatar{
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    object-fit:cover;
+}
+
+button{
+    border:none;
+    cursor:pointer;
+    border-radius:10px;
+    padding:10px 16px;
+    font-weight:500;
+}
+
+.btn-primary{
+    background:var(--accent);
+    color:white;
+}
+
+.btn-primary:hover{
+    background:var(--accent-hover);
+}
+
+.btn-outline{
+    background:white;
+    border:1px solid var(--border);
+}
+
+input,select{
+    width:100%;
+    padding:12px;
+    margin-bottom:15px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:white;
+}
+
+.detail-body{
+    margin-top:30px;
+    line-height:1.9;
+    font-family:Lora,serif;
+    font-size:1.1rem;
+}
+
+.comment{
+    background:white;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    margin-top:12px;
+}
+
+.welcome{
+    background:var(--nav);
+    color:white;
+    padding:30px;
+    border-radius:var(--radius);
+    margin-bottom:30px;
+}
+
+.welcome h1{
+    font-family:Lora,serif;
+    margin-bottom:10px;
+}
+
+.ql-container{
+    min-height:300px;
+    font-size:1rem;
+}
+
+.login-screen{
+    height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:20px;
+}
+
+.login-screen h1{
+    font-size:52px;
+    font-family:Lora,serif;
+}
+
+@media(max-width:768px){
+
+    .main{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+        display:flex;
+        padding:0;
+        overflow:auto;
+    }
+
+    .nav-item{
+        flex:1;
+        text-align:center;
+        padding:16px 8px;
+        font-size:14px;
+    }
+
+    .content{
+        padding:20px;
+    }
+}
+
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+
+    <h1>Letras Académicas</h1>
+
+    <button class="btn-primary" id="google-login">
+        Ingresar con Google
+    </button>
+
+</div>
+
+<div id="app" class="hidden">
+
+    <div class="topbar">
+
+        <div class="brand">
+            Letras Académicas
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;">
+
+            <img id="user-avatar" class="avatar">
+
+            <span id="user-name"></span>
+
+            <button class="btn-outline" onclick="logout()">
+                Salir
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="main">
+
+        <div class="sidebar">
+
+            <div class="nav-item active" onclick="navigate('dashboard',this)">
+                Inicio
+            </div>
+
+            <div class="nav-item" onclick="navigate('biblioteca',this)">
+                Biblioteca
+            </div>
+
+            <div class="nav-item" onclick="navigate('nuevo',this)">
+                Publicar
+            </div>
+
+            <div class="nav-item" onclick="navigate('mis-textos',this)">
+                Mis textos
+            </div>
+
+        </div>
+
+        <div class="content" id="content"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+const SUPABASE_URL = 'PEGAR_URL';
+const SUPABASE_KEY = 'PEGAR_KEY';
+
+const db = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+let currentUser = null;
+let allTexts = [];
+let quill = null;
+let editingId = null;
+
+const content = document.getElementById('content');
+
+function avatar(name){
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+}
+
+async function refreshTexts(){
+
+    const { data, error } = await db
+    .from('textos')
+    .select('*')
+    .order('created_at',{ascending:false});
+
+    if(error){
+        console.error(error);
+        return;
+    }
+
+    allTexts = data || [];
+}
+
+function card(text){
+
+    const div = document.createElement('div');
+
+    div.innerHTML = DOMPurify.sanitize(text.body);
+
+    return `
+    <div class="card" onclick="openText('${text.id}')">
+
+        <div class="card-title">
+            ${text.title}
+        </div>
+
+        <div class="card-text">
+            ${div.textContent.slice(0,180)}...
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:15px;">
+
+            <img class="avatar" src="${avatar(text.author_name)}">
+
+            <span>${text.author_name}</span>
+
+        </div>
+
+    </div>
+    `;
+}
+
+function setActive(el){
+
+    document.querySelectorAll('.nav-item').forEach(x=>{
+        x.classList.remove('active');
+    });
+
+    el.classList.add('active');
+}
+
+function navigate(page,el=null){
+
+    if(el){
+        setActive(el);
+    }
+
+    if(page === 'dashboard'){
+
+        const mine = allTexts.filter(t => t.user_id === currentUser.id);
+
+        content.innerHTML = `
+        <div class="welcome">
+
+            <h1>
+                Hola, ${currentUser.name.split(' ')[0]}
+            </h1>
+
+            <p>
+                Tu espacio de escritura compartida.
+            </p>
+
+        </div>
+
+        ${allTexts.slice(0,3).map(card).join('')}
+        `;
+    }
+
+    if(page === 'biblioteca'){
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">
+            Biblioteca
+        </h1>
+
+        ${allTexts.map(card).join('')}
+        `;
+    }
+
+    if(page === 'mis-textos'){
+
+        const mine = allTexts.filter(t => t.user_id === currentUser.id);
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">
+            Mis textos
+        </h1>
+
+        ${mine.map(card).join('')}
+        `;
+    }
+
+    if(page === 'nuevo'){
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">
+            ${editingId ? 'Editar texto' : 'Nuevo texto'}
+        </h1>
+
+        <input type="text" id="title" placeholder="Título">
+
+        <select id="type">
+            <option value="ensayo">Ensayo</option>
+            <option value="resumen">Resumen</option>
+            <option value="informe">Informe</option>
+        </select>
+
+        <div id="editor"></div>
+
+        <div style="margin-top:20px;">
+
+            <button class="btn-primary" onclick="submitText()">
+                ${editingId ? 'Guardar cambios' : 'Publicar'}
+            </button>
+
+        </div>
+        `;
+
+        quill = new Quill('#editor',{
+            theme:'snow',
+            modules:{
+                toolbar:[
+                    [{header:[2,3,false]}],
+                    ['bold','italic'],
+                    [{list:'ordered'},{list:'bullet'}],
+                    ['clean']
+                ]
+            }
+        });
+    }
+}
+
+async function submitText(){
+
+    try{
+
+        const title = document.getElementById('title').value.trim();
+
+        const type = document.getElementById('type').value;
+
+        const body = DOMPurify.sanitize(
+            quill.root.innerHTML
+        );
+
+        if(title.length < 3){
+            alert('Título demasiado corto');
+            return;
+        }
+
+        if(quill.getText().trim().length < 10){
+            alert('Texto demasiado corto');
+            return;
+        }
+
+        if(editingId){
+
+            const { error } = await db
+            .from('textos')
+            .update({
+                title,
+                body,
+                type
+            })
+            .eq('id',editingId)
+            .eq('user_id',currentUser.id);
+
+            if(error) throw error;
+
+        }else{
+
+            const { error } = await db
+            .from('textos')
+            .insert([{
+                title,
+                body,
+                type,
+                user_id:currentUser.id,
+                author_name:currentUser.name,
+                likes:0,
+                destacado:false
+            }]);
+
+            if(error) throw error;
+        }
+
+        editingId = null;
+
+        await refreshTexts();
+
+        navigate('mis-textos');
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+    }
+}
+
+async function openText(id){
+
+    const text = allTexts.find(t => t.id === id);
+
+    if(!text){
+        return;
+    }
+
+    const { data: comments } = await db
+    .from('comentarios')
+    .select('*')
+    .eq('texto_id',id)
+    .order('created_at',{ascending:true});
+
+    content.innerHTML = `
+
+    <button class="btn-outline" onclick="navigate('biblioteca')">
+        ← Volver
+    </button>
+
+    <h1 style="margin-top:20px;font-family:Lora,serif;">
+        ${text.title}
+    </h1>
+
+    <div style="margin-top:20px;display:flex;gap:10px;">
+
+        ${text.user_id === currentUser.id ? `
+        <button class="btn-outline" onclick="editText('${text.id}')">
+            Editar
+        </button>
+        ` : ''}
+
+    </div>
+
+    <div class="detail-body">
+        ${DOMPurify.sanitize(text.body)}
+    </div>
+
+    <h3 style="margin-top:40px;">
+        Comentarios
+    </h3>
+
+    ${(comments || []).map(c => `
+        <div class="comment">
+
+            <b>${c.author_name}</b>
+
+            <div style="margin-top:6px;">
+                ${DOMPurify.sanitize(c.body)}
+            </div>
+
+        </div>
+    `).join('')}
+    `;
+}
+
+function editText(id){
+
+    const text = allTexts.find(t => t.id === id);
+
+    if(!text){
+        return;
+    }
+
+    editingId = id;
+
+    navigate('nuevo');
+
+    document.getElementById('title').value = text.title;
+
+    document.getElementById('type').value = text.type;
+
+    quill.root.innerHTML = text.body;
+}
+
+async function logout(){
+
+    await db.auth.signOut();
+
+    location.reload();
+}
+
+document.getElementById('google-login')
+.addEventListener('click',async()=>{
+
+    await db.auth.signInWithOAuth({
+        provider:'google',
+        options:{
+            redirectTo:window.location.origin
+        }
+    });
+});
+
+async function init(){
+
+    const { data:{ session } } = await db.auth.getSession();
+
+    if(!session){
+        return;
+    }
+
+    currentUser = {
+        id:session.user.id,
+        name:session.user.user_metadata.full_name || 'Usuario'
+    };
+
+    document.getElementById('user-name')
+    .textContent = currentUser.name;
+
+    document.getElementById('user-avatar')
+    .src = avatar(currentUser.name);
+
+    document.getElementById('login-screen')
+    .classList.add('hidden');
+
+    document.getElementById('app')
+    .classList.remove('hidden');
+
+    await refreshTexts();
+
+    navigate('dashboard');
+}
+
+init();
+
+</script>
+
+</body>
+</html>
 --card:#fff;
 --nav:#1e293b;
 --text:#1e293b;
