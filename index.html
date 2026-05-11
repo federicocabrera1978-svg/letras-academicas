@@ -1,432 +1,607 @@
+# Letras Académicas — Versión Refactorizada
+
+## index.html
+
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Letras Académicas - Instituto Belgrano</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letras Académicas</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
 <style>
-/* ═══════════════════════════════════════════════════════════════
-   VARIABLES Y MODO OSCURO
-   ═══════════════════════════════════════════════════════════════ */
-:root {
-    --bg-body: #fbfaf8; --bg-nav: #1e293b; --bg-sidebar: #ffffff; --bg-card: #ffffff;
-    --text-main: #1e293b; --text-muted: #64748b; --border-color: #e2e8f0;
-    --accent: #8b1818; --accent-hover: #6a1212; --accent-light: #fef2f2;
-    --font-serif: 'Lora', Georgia, serif; --font-sans: 'Inter', sans-serif;
-    --shadow: 0 4px 6px -1px rgba(0,0,0,0.05); --r: 8px;
-    --ok: #15803d; --warn: #b45309; --purple: #6d28d9;
+:root{
+--bg:#fbfaf8;
+--card:#fff;
+--nav:#1e293b;
+--text:#1e293b;
+--muted:#64748b;
+--border:#e2e8f0;
+--accent:#8b1818;
+--accent-hover:#6a1212;
+--radius:10px;
 }
 
-body.dark-mode {
-    --bg-body: #0f172a; --bg-nav: #020617; --bg-sidebar: #1e293b; --bg-card: #1e293b;
-    --text-main: #f8fafc; --text-muted: #94a3b8; --border-color: #334155;
-    --accent: #e14d4d; --accent-hover: #fca5a5; --accent-light: rgba(225, 77, 77, 0.1);
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: var(--font-sans); background: var(--bg-body); color: var(--text-main); font-size: 15px; transition: background 0.3s, color 0.3s; }
-.hidden { display: none !important; }
-
-/* ═══════════════════════════════════════════════════════════════
-   LAYOUT PRINCIPAL
-   ═══════════════════════════════════════════════════════════════ */
-#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-.topbar { background: var(--bg-nav); color: #fff; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 50; }
-.topbar-brand { font-family: var(--font-serif); font-size: 20px; font-weight: 600; }
-.topbar-brand span { color: #fca5a5; font-style: italic; }
-.topbar-right { display: flex; align-items: center; gap: 15px; }
-
-.main { display: flex; flex: 1; overflow: hidden; position: relative; }
-.sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; overflow-y: auto; transition: background 0.3s; z-index: 40; }
-.nav-item { padding: 12px 24px; cursor: pointer; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 12px; border-left: 3px solid transparent; transition: all 0.2s; }
-.nav-item:hover { background: var(--bg-body); color: var(--text-main); }
-.nav-item.active { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); }
-.content { flex: 1; overflow-y: auto; padding: 32px 40px; }
-
-/* Avatares */
-.avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
-.avatar-sm { width: 24px; height: 24px; border: none; }
-
-/* ═══════════════════════════════════════════════════════════════
-   DISEÑO RESPONSIVO (MOBILE FIRST)
-   ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-    .topbar { padding: 0 15px; }
-    .topbar-brand { font-size: 18px; }
-    #topbar-uname { display: none; } 
-    #btn-logout span { display: none; } 
-
-    .main { flex-direction: column; }
-    .content { padding: 20px 15px 90px 15px; } 
-    
-    .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; left: 0; right: 0; display: flex; flex-direction: row; padding: 5px 0; padding-bottom: env(safe-area-inset-bottom, 5px); justify-content: space-around; border-right: none; border-top: 1px solid var(--border-color); box-shadow: 0 -4px 12px rgba(0,0,0,0.05); }
-    .sidebar > div:not(.nav-item) { display: none; } 
-    
-    .nav-item { padding: 8px 4px; flex-direction: column; font-size: 11px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; flex: 1; text-align: center; justify-content: center; }
-    .nav-item.active { border-bottom-color: var(--accent); border-left-color: transparent; background: transparent; }
-    .nav-icon { font-size: 20px; }
-
-    .ql-toolbar.ql-snow { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-    .page-header h1 { font-size: 24px; }
+body{
+font-family:Inter,sans-serif;
+background:var(--bg);
+color:var(--text);
 }
-@media (min-width: 769px) { .nav-icon { display: none; } }
 
-/* ═══════════════════════════════════════════════════════════════
-   COMPONENTES UI
-   ═══════════════════════════════════════════════════════════════ */
-button { font-family: var(--font-sans); cursor: pointer; border-radius: 6px; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-.btn-primary { background: var(--accent); color: #fff; padding: 10px 20px; font-weight: 500; }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; }
-.btn-outline:hover { background: var(--bg-body); }
+.hidden{
+display:none!important;
+}
 
-.page-header { margin-bottom: 30px; }
-.page-header h1 { font-family: var(--font-serif); font-size: 28px; color: var(--text-main); margin-bottom: 8px; }
+.topbar{
+height:60px;
+background:var(--nav);
+color:white;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 20px;
+}
 
-/* Tarjetas */
-.text-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r); padding: 24px; margin-bottom: 16px; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.2s; }
-.text-card:hover { transform: translateY(-2px); border-color: var(--accent); }
-.text-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; margin-bottom: 10px; color: var(--text-main); }
-.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.tag.ensayo { background: rgba(21, 128, 61, 0.1); color: var(--ok); }
-.tag.informe { background: rgba(180, 83, 9, 0.1); color: var(--warn); }
-.tag.resumen { background: rgba(109, 40, 217, 0.1); color: var(--purple); }
-.tag.otro { background: var(--accent-light); color: var(--accent); }
-.text-excerpt { color: var(--text-muted); line-height: 1.6; margin: 12px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.brand{
+font-family:Lora,serif;
+font-size:22px;
+font-weight:600;
+}
 
-/* Dashboard & Detalles */
-.welcome-banner { background: var(--bg-nav); color: #fff; border-radius: var(--r); padding: 32px; margin-bottom: 30px; }
-.welcome-banner h2 { font-family: var(--font-serif); font-size: 24px; margin-bottom: 10px; }
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 40px; }
-.stat-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--r); text-align: center; }
-.stat-value { font-family: var(--font-serif); font-size: 32px; font-weight: 600; color: var(--accent); }
+.main{
+display:flex;
+height:calc(100vh - 60px);
+}
 
-.detail-body { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.8; color: var(--text-main); margin: 30px 0; }
-.detail-body img { max-width: 100%; border-radius: var(--r); }
-.comments-section { border-top: 1px solid var(--border-color); padding-top: 30px; }
-.comment { background: var(--bg-body); padding: 16px; border-radius: var(--r); margin-bottom: 12px; border: 1px solid var(--border-color); }
+.sidebar{
+width:240px;
+background:white;
+border-right:1px solid var(--border);
+padding:20px 0;
+}
 
-/* Formularios y Quill */
-input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-body); color: var(--text-main); font-family: var(--font-sans); outline: none; }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-.ql-toolbar.ql-snow { border-color: var(--border-color) !important; background: var(--bg-sidebar); border-radius: 6px 6px 0 0; }
-.ql-container.ql-snow { border-color: var(--border-color) !important; font-family: var(--font-serif); font-size: 1.1rem; min-height: 300px; border-radius: 0 0 6px 6px; background: var(--bg-sidebar); }
-body.dark-mode .ql-snow .ql-stroke { stroke: var(--text-main); }
-body.dark-mode .ql-snow .ql-fill { fill: var(--text-main); }
-body.dark-mode .ql-snow .ql-picker { color: var(--text-main); }
+.nav-item{
+padding:14px 24px;
+cursor:pointer;
+font-weight:500;
+}
 
-/* Landing */
-.landing-screen { position: fixed; inset: 0; z-index: 90; background: var(--bg-body); overflow-y: auto; text-align: center; }
-.landing-hero { background: var(--bg-nav); color: #fff; padding: 100px 20px; }
-.landing-hero h1 { font-family: var(--font-serif); font-size: 48px; margin-bottom: 20px; }
-.google-btn { background: #fff; color: #333; display: inline-flex; align-items: center; gap: 10px; padding: 12px 24px; font-size: 16px; border-radius: 8px; font-weight: 500; margin-top: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-.google-btn:hover { background: #f8f9fa; }
+.nav-item:hover{
+background:#f8fafc;
+}
+
+.content{
+flex:1;
+overflow:auto;
+padding:30px;
+}
+
+.card{
+background:white;
+border:1px solid var(--border);
+border-radius:var(--radius);
+padding:20px;
+margin-bottom:16px;
+cursor:pointer;
+}
+
+.card:hover{
+border-color:var(--accent);
+}
+
+button{
+border:none;
+cursor:pointer;
+border-radius:8px;
+padding:10px 16px;
+font-weight:500;
+}
+
+.btn-primary{
+background:var(--accent);
+color:white;
+}
+
+.btn-primary:hover{
+background:var(--accent-hover);
+}
+
+.btn-outline{
+background:white;
+border:1px solid var(--border);
+}
+
+input,select{
+width:100%;
+padding:12px;
+margin-bottom:15px;
+border:1px solid var(--border);
+border-radius:8px;
+}
+
+.detail-body{
+font-family:Lora,serif;
+font-size:1.1rem;
+line-height:1.8;
+margin-top:25px;
+}
+
+.avatar{
+width:34px;
+height:34px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.comment{
+padding:14px;
+background:#f8fafc;
+border-radius:8px;
+margin-top:10px;
+}
+
+@media(max-width:768px){
+.main{
+flex-direction:column;
+}
+
+.sidebar{
+width:100%;
+display:flex;
+overflow:auto;
+padding:0;
+}
+
+.nav-item{
+flex:1;
+text-align:center;
+padding:16px 8px;
+font-size:14px;
+}
+
+.content{
+padding:20px;
+}
+}
 </style>
 </head>
 <body>
 
-<div id="app">
-
-    <div id="landing-screen" class="landing-screen">
-        <div class="landing-hero">
-            <h1>Letras <span style="color:#fca5a5;font-style:italic">Académicas</span></h1>
-            <p style="font-size: 1.2rem; max-width: 600px; margin: 0 auto; color: #cbd5e1;">Alfabetización Académica · Instituto Belgrano<br>Espacio de escritura, lectura y devolución entre pares.</p>
-            <button class="google-btn" id="login-google-btn">
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/google/google-original.svg" alt="Google" style="width:20px;">
-                Ingresar con Google
-            </button>
-        </div>
-        <div style="max-width: 900px; margin: 60px auto; padding: 0 20px; text-align: left;">
-            <h2 style="font-family: var(--font-serif); margin-bottom: 30px;">📚 Textos destacados del instituto</h2>
-            <div id="landing-textos">Cargando textos...</div>
-        </div>
-    </div>
-
-    <div class="topbar hidden" id="topbar">
-        <div class="topbar-brand">Letras <span>Académicas</span></div>
-        <div class="topbar-right">
-            <button id="theme-toggle" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding: 6px;">🌓</button>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <img id="topbar-avatar" class="avatar hidden" src="" alt="Avatar">
-                <span id="topbar-uname" style="font-weight: 500;"></span>
-            </div>
-            <button id="btn-logout" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding: 6px 12px;" onclick="doLogout()">🚪 <span>Salir</span></button>
-        </div>
-    </div>
-
-    <div class="main hidden" id="main-layout">
-        <div class="sidebar">
-            <div style="padding:0 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Menú</div>
-            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span> <span>◈ Inicio</span></div>
-            <div class="nav-item" data-page="textos" onclick="navigate('textos')"><span class="nav-icon">📚</span> <span>◇ Textos</span></div>
-            <div class="nav-item" data-page="nuevo" onclick="navigate('nuevo')"><span class="nav-icon">✍️</span> <span>＋ Publicar</span></div>
-            <div class="nav-item" data-page="miembros" onclick="navigate('miembros')"><span class="nav-icon">👥</span> <span>◎ Compañeros</span></div>
-            <div style="padding:20px 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Mi cuenta</div>
-            <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')"><span class="nav-icon">📁</span> <span>◻ Mis textos</span></div>
-        </div>
-        <div class="content" id="content-area"></div>
-    </div>
-
+<div id="login-screen" style="height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;">
+<h1 style="font-family:Lora,serif;font-size:48px;">Letras Académicas</h1>
+<button class="btn-primary" id="google-login">Ingresar con Google</button>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<div id="app" class="hidden">
+<div class="topbar">
+<div class="brand">Letras Académicas</div>
+<div style="display:flex;align-items:center;gap:10px;">
+<img id="user-avatar" class="avatar">
+<span id="user-name"></span>
+<button class="btn-outline" onclick="logout()">Salir</button>
+</div>
+</div>
+
+<div class="main">
+<div class="sidebar">
+<div class="nav-item" onclick="navigate('dashboard')">Inicio</div>
+<div class="nav-item" onclick="navigate('biblioteca')">Biblioteca</div>
+<div class="nav-item" onclick="navigate('nuevo')">Publicar</div>
+<div class="nav-item" onclick="navigate('mis-textos')">Mis textos</div>
+</div>
+
+<div class="content" id="content"></div>
+</div>
+</div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-// 1. CONFIGURACIÓN SUPABASE Y VARIABLES GLOBALES
-// ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://xjrdjesezseuofjoqpzn.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'TU_URL';
+const SUPABASE_KEY = 'TU_PUBLIC_KEY';
 
-let currentUser = null; 
-let currentPage = 'dashboard';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
 let allTexts = [];
-let allUsers = [];
-let quillEditor = null;
-let editingTextId = null;
+let quill = null;
+let editingId = null;
+let lastPublishTime = 0;
 
-function showEl(id){document.getElementById(id).classList.remove('hidden')}
-function hideEl(id){document.getElementById(id).classList.add('hidden')}
-function formatDate(ts){return ts ? new Date(ts).toLocaleDateString('es-AR', {year:'numeric',month:'long',day:'numeric'}) : '';}
+const content = document.getElementById('content');
 
-const themeToggle = document.getElementById('theme-toggle');
-if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-themeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-});
-
-// ═══════════════════════════════════════════════════════════════
-// 2. AUTENTICACIÓN GOOGLE
-// ═══════════════════════════════════════════════════════════════
-document.getElementById('login-google-btn').addEventListener('click', async () => {
-    await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
-});
-
-async function doLogout(){
-    await db.auth.signOut();
-    currentUser = null;
-    hideEl('topbar'); hideEl('main-layout'); showEl('landing-screen');
+function show(id){
+    document.getElementById(id).classList.remove('hidden');
 }
 
-db.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
-        const email = session.user.email;
-        const name = session.user.user_metadata.full_name || email.split('@')[0];
-        const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-        const avatarUrl = session.user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+function hide(id){
+    document.getElementById(id).classList.add('hidden');
+}
 
-        let { data: userProfile } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-        
-        if (!userProfile) {
-            const newProfile = {
-                id: session.user.id,
-                username: baseUsername,
-                name: name,
-                color: '#2d5a8e',
-                avatar_url: avatarUrl,
-                rol: (email === 'paulabaigorriabernal@gmail.com') ? 'profesor' : 'alumno'
-            };
-            await db.from('perfiles').insert([newProfile]);
-            userProfile = newProfile;
-        } else if (userProfile.avatar_url !== avatarUrl) {
-            await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
-            userProfile.avatar_url = avatarUrl;
-        }
+function avatar(name){
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
+}
 
-        currentUser = userProfile;
-        document.getElementById('topbar-uname').textContent = currentUser.name;
-        document.getElementById('topbar-avatar').src = currentUser.avatar_url;
-        showEl('topbar-avatar');
-        
-        hideEl('landing-screen'); showEl('topbar'); showEl('main-layout');
-        await refreshData();
-        navigate('dashboard');
-    } else {
-        hideEl('topbar'); hideEl('main-layout'); showEl('landing-screen');
-        await refreshData();
-        renderLandingTextos();
+async function refreshTexts(){
+    try{
+        const { data, error } = await db
+        .from('textos')
+        .select('*')
+        .order('created_at',{ascending:false})
+        .limit(50);
+
+        if(error) throw error;
+
+        allTexts = data || [];
+
+    }catch(err){
+        console.error(err);
+        alert('Error cargando textos');
     }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// 3. CARGA DE DATOS
-// ═══════════════════════════════════════════════════════════════
-async function refreshData(){
-    const {data: uData} = await db.from('perfiles').select('*');
-    allUsers = uData || [];
-    
-    const {data: tData} = await db.from('textos').select('*').order('created_at', {ascending: false});
-    allTexts = tData || [];
 }
 
-function getAvatar(username, fallbackName) {
-    const user = allUsers.find(u => u.username === username);
-    return user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=random`;
+function card(text){
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = DOMPurify.sanitize(text.body);
+
+    return `
+    <div class="card" onclick="openText('${text.id}')">
+        <h2 style="margin-bottom:10px;font-family:Lora,serif;">${text.title}</h2>
+        <p style="color:#64748b;">
+            ${tmp.textContent.slice(0,160)}...
+        </p>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:15px;">
+            <img class="avatar" src="${avatar(text.author_name)}">
+            <span>${text.author_name}</span>
+        </div>
+    </div>
+    `;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 4. VISTAS DE LA APLICACIÓN
-// ═══════════════════════════════════════════════════════════════
 function navigate(page){
-    currentPage = page;
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-    const ca = document.getElementById('content-area');
-    
-    const pages = {
-        dashboard: renderDashboard,
-        textos: renderTextos,
-        nuevo: renderNuevo,
-        miembros: renderMiembros,
-        'mis-textos': renderMisTextos
-    };
-    
-    ca.innerHTML = (pages[page] || renderDashboard)();
-    
-    if(page === 'nuevo') {
-        if(!quillEditor) {
-            quillEditor = new Quill('#editor-container', {
-                theme: 'snow',
-                placeholder: 'Redacta tu texto académico aquí...',
-                modules: { toolbar: [ [{ 'header': [2, 3, false] }], ['bold', 'italic', 'blockquote'], [{'list': 'ordered'}, {'list': 'bullet'}], ['clean'] ] }
-            });
-        }
-        if(!editingTextId) {
-            quillEditor.setContents([]); 
-            document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
-        }
-    } else {
-        editingTextId = null;
+
+    if(page === 'dashboard'){
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">Inicio</h1>
+
+        ${allTexts.slice(0,3).map(card).join('')}
+        `;
     }
-    ca.scrollTop = 0;
-}
 
-function renderDashboard(){
-    const myT = allTexts.filter(t => t.author_username === currentUser.username).length;
-    const recent = allTexts.slice(0, 3);
-    return `
-        <div class="welcome-banner">
-            <h2>Bienvenido/a, ${currentUser.name.split(' ')[0]}</h2>
-            <p style="opacity: 0.9; max-width: 600px;">Tu espacio de escritura académica compartida. Publicá textos, leé a tus compañeros y dejá devoluciones constructivas.</p>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-card"><div class="stat-value">${allTexts.length}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Textos en plataforma</div></div>
-            <div class="stat-card"><div class="stat-value">${myT}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Tus publicaciones</div></div>
-            <div class="stat-card"><div class="stat-value">${allUsers.length}</div><div style="color:var(--text-muted);font-size:13px;margin-top:5px;">Compañeros</div></div>
-        </div>
-        <h3 style="font-family:var(--font-serif); margin-bottom: 20px;">Últimas publicaciones</h3>
-        ${recent.length ? recent.map(t => cardHtml(t)).join('') : '<p>No hay publicaciones aún.</p>'}
-    `;
-}
+    if(page === 'biblioteca'){
 
-function renderTextos(){
-    return `
-        <div class="page-header">
-            <h1>Biblioteca Virtual</h1>
-            <p style="color:var(--text-muted)">Explora y comenta las producciones de tus compañeros.</p>
-        </div>
-        <div style="display:grid; gap:20px;">
-            ${allTexts.length ? allTexts.map(t => cardHtml(t)).join('') : '<p>Aún no hay textos publicados.</p>'}
-        </div>
-    `;
-}
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">Biblioteca</h1>
 
-function cardHtml(t){
-    // 🛡️ PASAMOS EL TEXTO POR DOMPURIFY ANTES DE LEERLO
-    const textoSeguro = DOMPurify.sanitize(t.body);
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = textoSeguro;
-    const plainText = tempDiv.textContent || tempDiv.innerText || "";
-    
-    return `
-    <div class="text-card" onclick="openText('${t.id}')">
-        <div class="text-title">${t.title}</div>
-        <div style="margin-bottom: 10px;">
-            <span class="tag ${t.type}">${t.type}</span>
-            <span style="font-size:13px; color:var(--text-muted); margin-left:10px;">${formatDate(t.created_at)}</span>
-            ${t.destacado ? '<span style="font-size:13px; color:#d97706; margin-left:10px; font-weight:600;">⭐ Destacado</span>' : ''}
-        </div>
-        <div class="text-excerpt">${plainText}</div>
-        <div style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
-                <span style="font-size: 14px; font-weight:500;">${t.author_name}</span>
-            </div>
-            <span style="font-size: 14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
-        </div>
-    </div>`;
-}
+        ${allTexts.map(card).join('')}
+        `;
+    }
 
-function renderNuevo(){
-    const tituloPantalla = editingTextId ? "Editar publicación" : "Publicar un texto";
-    return `
-    <div class="page-header"><h1 id="lbl-header-nuevo">${tituloPantalla}</h1></div>
-    <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
-        <div style="margin-bottom: 20px;">
-            <label style="display:block; margin-bottom:8px; font-weight:500;">Título</label>
-            <input type="text" id="f-title" placeholder="Ej: Análisis del Quijote">
-        </div>
-        <div style="margin-bottom: 20px;">
-            <label style="display:block; margin-bottom:8px; font-weight:500;">Tipo de texto</label>
-            <select id="f-type">
-                <option value="ensayo">Ensayo</option>
-                <option value="informe">Informe</option>
-                <option value="resumen">Resumen</option>
-                <option value="otro">Otro</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 20px;">
-            <label style="display:block; margin-bottom:8px; font-weight:500;">Contenido</label>
-            <div id="editor-container"></div>
-        </div>
-        <button class="btn-primary" onclick="submitText()" id="btn-pub">Publicar en la plataforma</button>
-    </div>`;
-}
+    if(page === 'mis-textos'){
 
-function editText(id) {
-    const t = allTexts.find(x => x.id === id);
-    if (!t) return;
-    
-    editingTextId = id; 
-    navigate('nuevo'); 
-    
-    document.getElementById('f-title').value = t.title;
-    document.getElementById('f-type').value = t.type;
-    quillEditor.root.innerHTML = t.body;
-    
-    document.getElementById('btn-pub').textContent = "Guardar cambios";
-    document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
+        const mine = allTexts.filter(t => t.user_id === currentUser.id);
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">Mis textos</h1>
+
+        ${mine.map(card).join('')}
+        `;
+    }
+
+    if(page === 'nuevo'){
+
+        content.innerHTML = `
+        <h1 style="margin-bottom:25px;font-family:Lora,serif;">
+            ${editingId ? 'Editar texto' : 'Nuevo texto'}
+        </h1>
+
+        <input type="text" id="title" placeholder="Título">
+
+        <select id="type">
+            <option value="ensayo">Ensayo</option>
+            <option value="resumen">Resumen</option>
+            <option value="informe">Informe</option>
+        </select>
+
+        <div id="editor"></div>
+
+        <div style="margin-top:20px;">
+            <button class="btn-primary" onclick="submitText()">
+                ${editingId ? 'Guardar cambios' : 'Publicar'}
+            </button>
+        </div>
+        `;
+
+        quill = new Quill('#editor',{
+            theme:'snow',
+            modules:{
+                toolbar:[
+                    [{header:[2,3,false]}],
+                    ['bold','italic','blockquote'],
+                    [{list:'ordered'},{list:'bullet'}],
+                    ['clean']
+                ]
+            },
+            formats:[
+                'header',
+                'bold',
+                'italic',
+                'blockquote',
+                'list',
+                'bullet'
+            ]
+        });
+    }
 }
 
 async function submitText(){
-    const title = document.getElementById('f-title').value.trim();
-    const type = document.getElementById('f-type').value;
-    const bodyHTML = quillEditor.root.innerHTML; 
-    const textPlain = quillEditor.getText().trim();
 
-    if(!title || !textPlain) { alert('Por favor, completa el título y el contenido.'); return; }
-    document.getElementById('btn-pub').disabled = true;
+    try{
 
-    if (editingTextId) {
-        await db.from('textos').update({
-            title: title, type: type, body: bodyHTML
-        }).eq('id', editingTextId);
-        editingTextId = null; 
-    } else {
-        await db.from('textos').insert([{
-            title: title, author_username: currentUser.username, author_name: currentUser.name,
-            type: type, body: bodyHTML, destacado: false, likes: 0,
+        const now = Date.now();
+
+        if(now - lastPublishTime < 30000){
+            alert('Esperá unos segundos antes de volver a publicar');
+            return;
+        }
+
+        lastPublishTime = now;
+
+        const title = document.getElementById('title').value.trim();
+        const body = DOMPurify.sanitize(quill.root.innerHTML);
+        const type = document.getElementById('type').value;
+
+        if(title.length < 3){
+            alert('Título demasiado corto');
+            return;
+        }
+
+        if(quill.getText().trim().length < 10){
+            alert('Texto demasiado corto');
+            return;
+        }
+
+        const payload = {
+            title,
+            body,
+            type
+        };
+
+        let response;
+
+        if(editingId){
+
+            response = await db
+            .from('textos')
+            .update(payload)
+            .eq('id', editingId)
+            .eq('user_id', currentUser.id);
+
+        }else{
+
+            response = await db
+            .from('textos')
+            .insert([{
+                ...payload,
+                user_id: currentUser.id,
+                author_name: currentUser.name,
+                likes:0,
+                destacado:false
+            }]);
+        }
+
+        if(response.error){
+            throw response.error;
+        }
+
+        editingId = null;
+
+        await refreshTexts();
+
+        navigate('mis-textos');
+
+    }catch(err){
+        console.error(err);
+        alert(err.message);
+    }
+}
+
+async function openText(id){
+
+    try{
+
+        const text = allTexts.find(t => t.id === id);
+
+        if(!text){
+            alert('Texto no encontrado');
+            return;
+        }
+
+        const { data: comments } = await db
+        .from('comentarios')
+        .select('*')
+        .eq('texto_id', id)
+        .order('created_at',{ascending:true});
+
+        content.innerHTML = `
+
+        <button class="btn-outline" onclick="navigate('biblioteca')">
+            ← Volver
+        </button>
+
+        <h1 style="margin-top:20px;font-family:Lora,serif;">
+            ${text.title}
+        </h1>
+
+        <div style="margin-top:15px;display:flex;gap:10px;">
+
+            ${text.user_id === currentUser.id ? `
+            <button class="btn-outline" onclick="editText('${text.id}')">
+                Editar
+            </button>
+            ` : ''}
+
+        </div>
+
+        <div class="detail-body">
+            ${DOMPurify.sanitize(text.body)}
+        </div>
+
+        <h3 style="margin-top:40px;">Comentarios</h3>
+
+        ${(comments || []).map(c => `
+            <div class="comment">
+                <b>${c.author_name}</b><br>
+                ${DOMPurify.sanitize(c.body)}
+            </div>
+        `).join('')}
+        `;
+
+    }catch(err){
+        console.error(err);
+        alert('No se pudo abrir el texto');
+    }
+}
+
+function editText(id){
+
+    const text = allTexts.find(t => t.id === id);
+
+    if(!text) return;
+
+    editingId = id;
+
+    navigate('nuevo');
+
+    document.getElementById('title').value = text.title;
+    document.getElementById('type').value = text.type;
+
+    quill.root.innerHTML = text.body;
+}
+
+async function logout(){
+    await db.auth.signOut();
+    location.reload();
+}
+
+document.getElementById('google-login').addEventListener('click', async ()=>{
+
+    await db.auth.signInWithOAuth({
+        provider:'google',
+        options:{
+            redirectTo:window.location.origin
+        }
+    });
+});
+
+async function init(){
+
+    const { data:{ session } } = await db.auth.getSession();
+
+    if(!session){
+        show('login-screen');
+        return;
+    }
+
+    currentUser = {
+        id:session.user.id,
+        name:session.user.user_metadata.full_name || 'Usuario'
+    };
+
+    document.getElementById('user-name').textContent = currentUser.name;
+    document.getElementById('user-avatar').src = avatar(currentUser.name);
+
+    hide('login-screen');
+    show('app');
+
+    await refreshTexts();
+
+    navigate('dashboard');
+}
+
+init();
+</script>
+
+</body>
+</html>
+```
+
+---
+
+# SQL obligatorio para Supabase
+
+## Tabla textos
+
+```sql
+alter table textos add column if not exists user_id uuid;
+```
+
+---
+
+## Activar RLS
+
+```sql
+alter table textos enable row level security;
+```
+
+---
+
+## Policies
+
+```sql
+create policy "lectura_publica"
+on textos
+for select
+using (true);
+```
+
+```sql
+create policy "insertar_propios"
+on textos
+for insert
+with check (auth.uid() = user_id);
+```
+
+```sql
+create policy "editar_propios"
+on textos
+for update
+using (auth.uid() = user_id);
+```
+
+```sql
+create policy "borrar_propios"
+on textos
+for delete
+using (auth.uid() = user_id);
+```
+
+---
+
+# Importante
+
+Reemplazar:
+
+```js
+const SUPABASE_URL = 'TU_URL';
+const SUPABASE_KEY = 'TU_PUBLIC_KEY';
+```
+
+por tus datos reales de Supabase.
