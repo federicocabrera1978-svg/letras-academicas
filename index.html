@@ -2,23 +2,20 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Letras Académicas - Instituto Belgrano</title>
 
-<!-- Fuentes: Lora para lectura, Inter para interfaz -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 
-<!-- Quill.js CSS (Editor Enriquecido) -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   VARIABLES Y MODO OSCURO (ESTILO CLÁSICO)
+   VARIABLES Y MODO OSCURO
    ═══════════════════════════════════════════════════════════════ */
 :root {
     --bg-body: #fbfaf8; --bg-nav: #1e293b; --bg-sidebar: #ffffff; --bg-card: #ffffff;
@@ -44,22 +41,54 @@ body { font-family: var(--font-sans); background: var(--bg-body); color: var(--t
    ═══════════════════════════════════════════════════════════════ */
 #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-.topbar { background: var(--bg-nav); color: #fff; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar { background: var(--bg-nav); color: #fff; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 50; }
 .topbar-brand { font-family: var(--font-serif); font-size: 20px; font-weight: 600; }
 .topbar-brand span { color: #fca5a5; font-style: italic; }
 .topbar-right { display: flex; align-items: center; gap: 15px; }
 
-.main { display: flex; flex: 1; overflow: hidden; }
-.sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; overflow-y: auto; transition: background 0.3s; }
+.main { display: flex; flex: 1; overflow: hidden; position: relative; }
+.sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px 0; overflow-y: auto; transition: background 0.3s; z-index: 40; }
 .nav-item { padding: 12px 24px; cursor: pointer; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 12px; border-left: 3px solid transparent; transition: all 0.2s; }
 .nav-item:hover { background: var(--bg-body); color: var(--text-main); }
 .nav-item.active { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); }
 .content { flex: 1; overflow-y: auto; padding: 32px 40px; }
 
+/* Avatares */
+.avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.2); }
+.avatar-sm { width: 24px; height: 24px; border: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DISEÑO RESPONSIVO (MOBILE FIRST)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .topbar { padding: 0 15px; }
+    .topbar-brand { font-size: 18px; }
+    #topbar-uname { display: none; } /* Ocultar nombre arriba para ganar espacio */
+    #btn-logout span { display: none; } /* Dejar solo icono de salir */
+
+    .main { flex-direction: column; }
+    .content { padding: 20px 15px 90px 15px; } /* Espacio extra abajo para la barra */
+    
+    /* Transformar Sidebar en Bottom Navigation */
+    .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; left: 0; right: 0; display: flex; flex-direction: row; padding: 5px 0; padding-bottom: env(safe-area-inset-bottom, 5px); justify-content: space-around; border-right: none; border-top: 1px solid var(--border-color); box-shadow: 0 -4px 12px rgba(0,0,0,0.05); }
+    .sidebar > div:not(.nav-item) { display: none; } /* Ocultar títulos de menú */
+    
+    .nav-item { padding: 8px 4px; flex-direction: column; font-size: 11px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; flex: 1; text-align: center; justify-content: center; }
+    .nav-item.active { border-bottom-color: var(--accent); border-left-color: transparent; background: transparent; }
+    .nav-icon { font-size: 20px; }
+
+    /* Ajustes Editor Quill en táctil */
+    .ql-toolbar.ql-snow { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .page-header h1 { font-size: 24px; }
+}
+
+/* En Desktop ocultamos los emojis del menú (opcional) */
+@media (min-width: 769px) { .nav-icon { display: none; } }
+
 /* ═══════════════════════════════════════════════════════════════
    COMPONENTES UI
    ═══════════════════════════════════════════════════════════════ */
-button { font-family: var(--font-sans); cursor: pointer; border-radius: 6px; border: none; transition: all 0.2s; }
+button { font-family: var(--font-sans); cursor: pointer; border-radius: 6px; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: var(--accent); color: #fff; padding: 10px 20px; font-weight: 500; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -113,13 +142,12 @@ body.dark-mode .ql-snow .ql-picker { color: var(--text-main); }
 
 <div id="app">
 
-    <!-- LANDING PÚBLICA -->
     <div id="landing-screen" class="landing-screen">
         <div class="landing-hero">
             <h1>Letras <span style="color:#fca5a5;font-style:italic">Académicas</span></h1>
             <p style="font-size: 1.2rem; max-width: 600px; margin: 0 auto; color: #cbd5e1;">Alfabetización Académica · Instituto Belgrano<br>Espacio de escritura, lectura y devolución entre pares.</p>
             <button class="google-btn" id="login-google-btn">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="width:20px;">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/google/google-original.svg" alt="Google" style="width:20px;">
                 Ingresar con Google
             </button>
         </div>
@@ -129,37 +157,38 @@ body.dark-mode .ql-snow .ql-picker { color: var(--text-main); }
         </div>
     </div>
 
-    <!-- APP SHELL -->
     <div class="topbar hidden" id="topbar">
         <div class="topbar-brand">Letras <span>Académicas</span></div>
         <div class="topbar-right">
-            <button id="theme-toggle" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2);">🌓 Modo Oscuro</button>
-            <span id="topbar-uname" style="font-weight: 500;"></span>
-            <button class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2);" onclick="doLogout()">Salir</button>
+            <button id="theme-toggle" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding: 6px;">🌓</button>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <img id="topbar-avatar" class="avatar hidden" src="" alt="Avatar">
+                <span id="topbar-uname" style="font-weight: 500;"></span>
+            </div>
+            <button id="btn-logout" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding: 6px 12px;" onclick="doLogout()">🚪 <span>Salir</span></button>
         </div>
     </div>
 
     <div class="main hidden" id="main-layout">
         <div class="sidebar">
             <div style="padding:0 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Menú</div>
-            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">◈ Inicio</div>
-            <div class="nav-item" data-page="textos" onclick="navigate('textos')">◇ Textos</div>
-            <div class="nav-item" data-page="nuevo" onclick="navigate('nuevo')">＋ Publicar texto</div>
-            <div class="nav-item" data-page="miembros" onclick="navigate('miembros')">◎ Compañeros</div>
+            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span> <span>◈ Inicio</span></div>
+            <div class="nav-item" data-page="textos" onclick="navigate('textos')"><span class="nav-icon">📚</span> <span>◇ Textos</span></div>
+            <div class="nav-item" data-page="nuevo" onclick="navigate('nuevo')"><span class="nav-icon">✍️</span> <span>＋ Publicar</span></div>
+            <div class="nav-item" data-page="miembros" onclick="navigate('miembros')"><span class="nav-icon">👥</span> <span>◎ Compañeros</span></div>
             <div style="padding:20px 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Mi cuenta</div>
-            <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')">◻ Mis textos</div>
+            <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')"><span class="nav-icon">📁</span> <span>◻ Mis textos</span></div>
         </div>
         <div class="content" id="content-area"></div>
     </div>
 
 </div>
 
-<!-- LIBRERÍAS EXTERNAS -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// 1. CONFIGURACIÓN SUPABASE Y VARIABLES
+// 1. CONFIGURACIÓN SUPABASE Y VARIABLES GLOBALES
 // ═══════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://xjrdjesezseuofjoqpzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P';
@@ -170,6 +199,7 @@ let currentPage = 'dashboard';
 let allTexts = [];
 let allUsers = [];
 let quillEditor = null;
+let editingTextId = null; // <- ESTADO PARA LA EDICIÓN
 
 // Utilidades DOM
 function showEl(id){document.getElementById(id).classList.remove('hidden')}
@@ -202,25 +232,33 @@ db.auth.onAuthStateChange(async (event, session) => {
         const email = session.user.email;
         const name = session.user.user_metadata.full_name || email.split('@')[0];
         const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Capturar avatar de Google (o asignar uno genérico si falla)
+        const avatarUrl = session.user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
         // Buscar si ya existe en la tabla PERFILES
         let { data: userProfile } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
         
         if (!userProfile) {
-            // Insertar asociándolo a su UUID
             const newProfile = {
                 id: session.user.id,
                 username: baseUsername,
                 name: name,
                 color: '#2d5a8e',
-                rol: (email === 'federicocabrera1978@gmail.com') ? 'profesor' : 'alumno'
+                avatar_url: avatarUrl,
+                rol: (email === 'paulabaigorriabernal@gmail.com') ? 'profesor' : 'alumno'
             };
             await db.from('perfiles').insert([newProfile]);
             userProfile = newProfile;
+        } else if (userProfile.avatar_url !== avatarUrl) {
+            // Actualizar avatar en BD si el usuario lo cambió en Google
+            await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
+            userProfile.avatar_url = avatarUrl;
         }
 
         currentUser = userProfile;
         document.getElementById('topbar-uname').textContent = currentUser.name;
+        document.getElementById('topbar-avatar').src = currentUser.avatar_url;
+        showEl('topbar-avatar');
         
         hideEl('landing-screen'); showEl('topbar'); showEl('main-layout');
         await refreshData();
@@ -233,7 +271,7 @@ db.auth.onAuthStateChange(async (event, session) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// 3. CARGA DE DATOS (TEXTOS, PERFILES)
+// 3. CARGA DE DATOS
 // ═══════════════════════════════════════════════════════════════
 async function refreshData(){
     const {data: uData} = await db.from('perfiles').select('*');
@@ -241,6 +279,11 @@ async function refreshData(){
     
     const {data: tData} = await db.from('textos').select('*').order('created_at', {ascending: false});
     allTexts = tData || [];
+}
+
+function getAvatar(username, fallbackName) {
+    const user = allUsers.find(u => u.username === username);
+    return user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=random`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -261,7 +304,7 @@ function navigate(page){
     
     ca.innerHTML = (pages[page] || renderDashboard)();
     
-    // Inicializar o Limpiar Quill
+    // Controlar limpieza del modo de edición
     if(page === 'nuevo') {
         if(!quillEditor) {
             quillEditor = new Quill('#editor-container', {
@@ -269,9 +312,14 @@ function navigate(page){
                 placeholder: 'Redacta tu texto académico aquí...',
                 modules: { toolbar: [ [{ 'header': [2, 3, false] }], ['bold', 'italic', 'blockquote'], [{'list': 'ordered'}, {'list': 'bullet'}], ['clean'] ] }
             });
-        } else {
-            quillEditor.setContents([]); // Limpiar editor si ya existía
         }
+        // Si NO estamos editando, limpiamos el editor por si quedó sucio
+        if(!editingTextId) {
+            quillEditor.setContents([]); 
+            document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
+        }
+    } else {
+        editingTextId = null; // Si salió de la pantalla 'nuevo', se resetea el modo edición
     }
     ca.scrollTop = 0;
 }
@@ -308,9 +356,8 @@ function renderTextos(){
     `;
 }
 
-// Generador de Tarjeta
+// Generador de Tarjeta (Ahora con avatar integrado)
 function cardHtml(t){
-    // Extraer texto plano para la vista previa
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = t.body;
     const plainText = tempDiv.textContent || tempDiv.innerText || "";
@@ -325,7 +372,10 @@ function cardHtml(t){
         </div>
         <div class="text-excerpt">${plainText}</div>
         <div style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size: 14px; font-weight:500;">👤 ${t.author_name}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
+                <span style="font-size: 14px; font-weight:500;">${t.author_name}</span>
+            </div>
             <span style="font-size: 14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
         </div>
     </div>`;
@@ -333,8 +383,9 @@ function cardHtml(t){
 
 // VISTA: Nuevo Texto
 function renderNuevo(){
+    const tituloPantalla = editingTextId ? "Editar publicación" : "Publicar un texto";
     return `
-    <div class="page-header"><h1>Publicar un texto</h1></div>
+    <div class="page-header"><h1 id="lbl-header-nuevo">${tituloPantalla}</h1></div>
     <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
         <div style="margin-bottom: 20px;">
             <label style="display:block; margin-bottom:8px; font-weight:500;">Título</label>
@@ -357,6 +408,24 @@ function renderNuevo(){
     </div>`;
 }
 
+// NUEVA FUNCIÓN: Cargar datos para editar
+function editText(id) {
+    const t = allTexts.find(x => x.id === id);
+    if (!t) return;
+    
+    editingTextId = id; // Encendemos modo edición
+    navigate('nuevo'); // Renderiza el esqueleto de "Nuevo" e inicializa Quill
+    
+    // Rellenamos los datos del texto que se va a editar
+    document.getElementById('f-title').value = t.title;
+    document.getElementById('f-type').value = t.type;
+    quillEditor.root.innerHTML = t.body;
+    
+    // Cambiamos textos de los botones
+    document.getElementById('btn-pub').textContent = "Guardar cambios";
+    document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
+}
+
 async function submitText(){
     const title = document.getElementById('f-title').value.trim();
     const type = document.getElementById('f-type').value;
@@ -366,13 +435,22 @@ async function submitText(){
     if(!title || !textPlain) { alert('Por favor, completa el título y el contenido.'); return; }
     document.getElementById('btn-pub').disabled = true;
 
-    await db.from('textos').insert([{
-        title: title, author_username: currentUser.username, author_name: currentUser.name,
-        type: type, body: bodyHTML, destacado: false, likes: 0, date: new Date().toISOString()
-    }]);
+    if (editingTextId) {
+        // ACTUALIZAR TEXTO EXISTENTE
+        await db.from('textos').update({
+            title: title, type: type, body: bodyHTML
+        }).eq('id', editingTextId);
+        editingTextId = null; // Apagamos modo edición
+    } else {
+        // CREAR TEXTO NUEVO
+        await db.from('textos').insert([{
+            title: title, author_username: currentUser.username, author_name: currentUser.name,
+            type: type, body: bodyHTML, destacado: false, likes: 0, date: new Date().toISOString()
+        }]);
+    }
 
     await refreshData();
-    navigate('textos');
+    navigate('mis-textos');
 }
 
 // VISTA: Detalle del Texto
@@ -380,10 +458,7 @@ async function openText(id){
     const t = allTexts.find(x => x.id === id); if(!t) return;
     const ca = document.getElementById('content-area');
     
-    // Cargar comentarios
     const {data: coms} = await db.from('comentarios').select('*').eq('texto_id', id).order('created_at', {ascending: true});
-    
-    // Check Like
     const {data: myLike} = await db.from('likes').select('*').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle();
     const yaDioLike = !!myLike;
 
@@ -395,12 +470,21 @@ async function openText(id){
         <div style="display:flex; gap: 15px; align-items:center; flex-wrap:wrap;">
             <span class="tag ${t.type}">${t.type}</span>
             <span style="color:var(--text-muted);">${formatDate(t.created_at)}</span>
-            <span style="font-weight:500;">👤 ${t.author_name}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
+                <span style="font-weight:500;">${t.author_name}</span>
+            </div>
+            
             <button class="btn-outline" onclick="toggleLike('${t.id}', ${yaDioLike})" style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
                 ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
             </button>
+            
             ${currentUser.rol === 'profesor' ? `<button class="btn-outline" onclick="toggleDestacado('${t.id}', ${t.destacado})">${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}</button>` : ''}
-            ${currentUser.username === t.author_username ? `<button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" onclick="deleteText('${t.id}')">Eliminar</button>` : ''}
+            
+            ${currentUser.username === t.author_username ? `
+                <button class="btn-outline" style="color:#0284c7;border-color:#0284c7;" onclick="editText('${t.id}')">✏️ Editar</button>
+                <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" onclick="deleteText('${t.id}')">🗑️ Eliminar</button>
+            ` : ''}
         </div>
     </div>
     
@@ -410,7 +494,11 @@ async function openText(id){
         <h3 style="font-family:var(--font-serif); margin-bottom: 20px;">Devoluciones (${coms ? coms.length : 0})</h3>
         ${(coms && coms.length) ? coms.map(c => `
             <div class="comment">
-                <div style="font-weight:600; font-size:13px; margin-bottom:5px;">${c.author_name} <span style="font-weight:400; color:var(--text-muted); margin-left:10px;">${formatDate(c.created_at)}</span></div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <img src="${getAvatar(c.author_username, c.author_name)}" class="avatar avatar-sm">
+                    <span style="font-weight:600; font-size:13px;">${c.author_name}</span>
+                    <span style="font-weight:400; color:var(--text-muted); font-size:12px;">${formatDate(c.created_at)}</span>
+                </div>
                 <div style="color:var(--text-main); line-height:1.6;">${c.body}</div>
             </div>
         `).join('') : '<p style="color:var(--text-muted); margin-bottom: 20px;">Aún no hay devoluciones. ¡Sé el primero!</p>'}
@@ -451,13 +539,9 @@ async function submitComment(id){
 
 async function deleteText(id){
     if(!confirm('¿Estás seguro de eliminar este texto permanentemente?')) return;
-    
-    // Primero borrar likes y comentarios en cascada manual por seguridad (si no lo tienes configurado en la BDD)
     await db.from('likes').delete().eq('texto_id', id);
     await db.from('comentarios').delete().eq('texto_id', id);
-    // Luego borrar el texto
     await db.from('textos').delete().eq('id', id);
-    
     await refreshData();
     navigate('mis-textos');
 }
@@ -467,9 +551,10 @@ function renderMiembros(){
     return `<div class="page-header"><h1>Compañeros</h1></div>
     <div style="display:grid; gap:15px;">
         ${allUsers.map(u => `
-            <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; align-items:center; gap:15px;">
+                <img src="${u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`}" class="avatar">
                 <div>
-                    <div style="font-weight:600;">${u.name} ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesor</span>' : ''}</div>
+                    <div style="font-weight:600;">${u.name} ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesora</span>' : ''}</div>
                     <div style="color:var(--text-muted); font-size:13px;">@${u.username}</div>
                 </div>
             </div>
