@@ -386,7 +386,7 @@ async function submitText() {
         date:            new Date().toISOString()
       }]);
     }
-    await refreshData();}
+    await refreshData();
     localStorage.removeItem('borrador'); // ← agregar esta línea
     navigate('mis-textos');
   } catch (err) {
