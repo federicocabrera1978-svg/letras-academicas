@@ -244,7 +244,7 @@ function renderTextos() {
   `;
 }
  function filterTextos(tipo) {
-  ['todos','ensayo','resumen','reseña','informe','otro','argumentativo','narrativo','expositivo'].forEach{
+  ['todos','ensayo','resumen','reseña','informe','otro','argumentativo','narrativo','expositivo'].forEach (f => {
     const btn = document.getElementById('f-' + f);
     if (!btn) return;
     btn.style.background  = f === tipo ? 'var(--accent)' : '';
