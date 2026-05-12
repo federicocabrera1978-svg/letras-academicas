@@ -301,6 +301,9 @@ button {
 .tag.resumen { background: #dcfce7; color: #16a34a; }
 .tag.reseña  { background: #fef9c3; color: #854d0e; }
 .tag.informe { background: #f3e8ff; color: #7e22ce; }
+.tag.argumentativo { background: #fee2e2; color: #991b1b; }
+.tag.narrativo     { background: #e0f2fe; color: #0369a1; }
+.tag.expositivo    { background: #fef3c7; color: #92400e; }
 .tag.otro    { background: #f1f5f9; color: #475569; }
 
 /* Encabezado de página */
