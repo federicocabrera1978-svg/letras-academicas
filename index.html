@@ -488,15 +488,25 @@ function renderMiembros() {
       ${allUsers.map(u => `
         <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; align-items:center; gap:15px;">
           <img src="${u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`}" class="avatar">
-          <div>
+          <div style="flex:1;">
             <div style="font-weight:600;">${u.name}
               ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesora</span>' : ''}
             </div>
             <div style="color:var(--text-muted); font-size:13px;">@${u.username}</div>
           </div>
+          ${currentUser.rol === 'profesor' && u.id !== currentUser.id ? `
+            <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" 
+              onclick="eliminarMiembro('${u.id}', '${u.name}')">🗑️ Eliminar</button>
+          ` : ''}
         </div>
       `).join('')}
     </div>`;
+}
+async function eliminarMiembro(id, nombre) {
+  if (!confirm(`¿Eliminar a ${nombre} de la plataforma?`)) return;
+  await db.from('perfiles').delete().eq('id', id);
+  await refreshData();
+  navigate('miembros');
 }
 // Cargar textos destacados en la landing (sin login)
 async function loadLandingDestacados() {
