@@ -196,6 +196,23 @@ function navigate(page) {
         ]
       }
     });
+    // Restaurar borrador si existe
+const borrador = localStorage.getItem('borrador');
+if (borrador && !editingTextId) {
+  const data = JSON.parse(borrador);
+  document.getElementById('f-title').value = data.title || '';
+  document.getElementById('f-type').value  = data.type  || 'ensayo';
+  quillEditor.root.innerHTML               = data.body  || '';
+}
+
+// Guardar automáticamente cada 10 segundos
+setInterval(() => {
+  localStorage.setItem('borrador', JSON.stringify({
+    title: document.getElementById('f-title').value,
+    type:  document.getElementById('f-type').value,
+    body:  quillEditor.root.innerHTML
+  }));
+}, 10000);
     if (!editingTextId) {
       document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
     }
@@ -364,7 +381,8 @@ async function submitText() {
         date:            new Date().toISOString()
       }]);
     }
-    await refreshData();
+    await refreshData();}
+    localStorage.removeItem('borrador'); // ← agregar esta línea
     navigate('mis-textos');
   } catch (err) {
     console.error('Error al guardar:', err);
