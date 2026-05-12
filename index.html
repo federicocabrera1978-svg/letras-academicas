@@ -100,7 +100,7 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // 2. AUTENTICACIÓN
 // ═══════════════════════════════════════════════════════════════
 document.getElementById('login-google-btn').addEventListener('click', async () => {
-  await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+  await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
 });
 
 async function doLogout() {
