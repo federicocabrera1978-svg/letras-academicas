@@ -104,8 +104,13 @@ document.getElementById('login-google-btn').addEventListener('click', async () =
 });
 
 async function doLogout() {
-  await db.auth.signOut();
-  location.reload();
+  try {
+    await db.auth.signOut();
+  } catch(err) {
+    console.error('Error al cerrar sesión:', err);
+  } finally {
+    location.reload(); //← siempre recarga, haya error o no
+  }
 }
 
 db.auth.onAuthStateChange(async (event, session) => {
