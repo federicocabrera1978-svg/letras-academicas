@@ -526,8 +526,7 @@ contenedor.innerHTML = data.map(t => `
     <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:20px; margin-bottom:15px;">
       <div style="font-size:12px; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">${t.type}</div>
       <div style="font-family:var(--font-serif); font-size:18px; font-weight:600; margin-bottom:8px;">${t.title}</div>
-      <div style="font-family:var(--font-serif); font-size:15px; color:#e2e8f0; line-height:1.8; margin-bottom:12px;">${t.body.replace(/<[^>]*>/g,'').substring(0,300)}...</div>
-      <div style="font-size:13px; color:#94a3b8;">Por ${t.author_name}</div>
+      <div style="font-size:13px; color:#cbd5e1;">Por ${t.author_name}</div>
     </div>
 `).join('');
 }
