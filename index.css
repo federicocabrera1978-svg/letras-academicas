@@ -387,6 +387,7 @@ button {
 }
 
 .google-btn {
+  margin-top: 40px;
   background: #fff;
   color: #1e293b;
   padding: 14px 28px;
