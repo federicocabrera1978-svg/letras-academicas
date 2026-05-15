@@ -403,13 +403,19 @@ async function submitComment(textoId) {
 // ═══════════════════════════════════════════════════════════════
 
 async function toggleLike(id, yaDioLike) {
-  if (yaDioLike) {
-    await db.from('likes').delete().eq('texto_id', id).eq('user_username', currentUser.username);
-    await db.from('textos').update({ likes: (allTexts.find(t => t.id === id)?.likes || 1) - 1 }).eq('id', id);
-  } else {
-    await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
-    await db.from('textos').update({ likes: (allTexts.find(t => t.id === id)?.likes || 0) + 1 }).eq('id', id);
+  // No se puede likear el propio texto
+  const t = allTexts.find(x => x.id === id);
+  if (t && t.author_username === currentUser.username) {
+    alert('No podés darle like a tu propio texto.');
+    return;
   }
+  // Si ya dio like, mostrar mensaje
+  if (yaDioLike) {
+    alert('Ya le diste like a este texto.');
+    return;
+  }
+  await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
+  await db.from('textos').update({ likes: (allTexts.find(t => t.id === id)?.likes || 0) + 1 }).eq('id', id);
   await refreshData();
   openText(id);
 }
