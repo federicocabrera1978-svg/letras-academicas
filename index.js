@@ -497,4 +497,10 @@ async function loadLandingDestacados() {
   `).join('');
 }
 
-loadLandingDestacados();
+// Al cargar la página, verificar si ya hay sesión activa
+db.auth.getSession().then(({ data: { session } }) => {
+  if (!session) {
+    loadLandingDestacados();
+  }
+  // Si hay sesión, onAuthStateChange muestra la app automáticamente
+});
