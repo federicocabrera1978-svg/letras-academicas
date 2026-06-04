@@ -143,30 +143,33 @@ function navigate(page) {
     });
 
     // Restaurar borrador si existe
-    const borrador = localStorage.getItem('borrador');
-    if (borrador && !editingTextId) {
-      const data = JSON.parse(borrador);
-      document.getElementById('f-title').value = data.title || '';
-      document.getElementById('f-type').value  = data.type  || 'ensayo';
-      quillEditor.root.innerHTML               = data.body  || '';
-    }
+const borrador = localStorage.getItem('borrador');
 
-    // Guardar automáticamente cada 10 segundos
-    setInterval(() => {
-      localStorage.setItem('borrador', JSON.stringify({
-        title: document.getElementById('f-title').value,
-        type:  document.getElementById('f-type').value,
-        body:  quillEditor.root.innerHTML
-      }));
-    }, 10000);
+if (borrador && !editingTextId) {
+  const titleInput = document.getElementById('f-title');
+  const typeInput  = document.getElementById('f-type');
 
-    if (!editingTextId) {
-      document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
-    }
-  } else {
-    editingTextId = null;
-    quillEditor   = null;
+  if (titleInput && typeInput && quillEditor) {
+    const data = JSON.parse(borrador);
+    titleInput.value = data.title || '';
+    typeInput.value  = data.type  || 'ensayo';
+    quillEditor.root.innerHTML = data.body || '';
   }
+}
+
+   // Guardar automáticamente cada 10 segundos
+setInterval(() => {
+  const titleInput = document.getElementById('f-title');
+  const typeInput  = document.getElementById('f-type');
+
+  if (!titleInput || !typeInput || !quillEditor) return;
+
+  localStorage.setItem('borrador', JSON.stringify({
+    title: titleInput.value,
+    type:  typeInput.value,
+    body:  quillEditor.root.innerHTML
+  }));
+}, 10000);
 
   ca.scrollTop = 0;
 }
