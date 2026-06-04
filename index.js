@@ -389,6 +389,10 @@ async function openText(id) {
 async function submitComment(textoId) {
   const body = document.getElementById('com-body').value.trim();
   if (!body) { alert('Escribí algo antes de enviar.'); return; }
+  
+  const btn = document.querySelector('[onclick="submitComment(\'' + textoId + '\')"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  
   await db.from('comentarios').insert([{
     texto_id:        textoId,
     author_username: currentUser.username,
