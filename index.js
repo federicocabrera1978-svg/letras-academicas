@@ -3,13 +3,21 @@
 // ═══════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://xjrdjesezseuofjoqpzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'letras-academicas-auth'
+  }
+});
 
 let currentUser   = null;
 let allTexts      = [];
 let allUsers      = [];
 let quillEditor   = null;
 let editingTextId = null;
+let appInitialized = false;
 
 // Utilidades DOM
 function showEl(id){ document.getElementById(id).classList.remove('hidden'); }
@@ -48,7 +56,9 @@ async function doLogout() {
 
 db.auth.onAuthStateChange(async (event, session) => {
   if (!session) return;
-
+  if (appInitialized) return;
+  appInitialized = true;
+    
   const email        = session.user.email;
   const name         = session.user.user_metadata.full_name || email.split('@')[0];
   const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
