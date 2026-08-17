@@ -1,15 +1,18 @@
 ﻿name: keep-alive
+
 on:
   schedule:
-    - cron: '0 12 */3 * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase
+      - name: Ping Letras Academicas
         run: |
-          curl -s -o /dev/null -w "%{http_code}\n" \
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
             "https://xjrdjesezseuofjoqpzn.supabase.co/rest/v1/textos?select=id&limit=1" \
-            -H "apikey: sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P"
+            -H "apikey: sb_publishable_c6zrWAExpbRtV6tfrYS2fg_7BpKUO1P")
+          echo "Letras Academicas -> HTTP $code"
+          test "$code" = "200"
