@@ -195,7 +195,7 @@ function renderDashboard() {
   const recientes  = allTexts.slice(0, 5);
   return `
     <div class="page-header">
-      <h1>Bienvenido/a, ${currentUser.name.split(' ')[0]} 👋</h1>
+      <h1>Bienvenido/a, ${esc(currentUser.name.split(' ')[0])} 👋</h1>
     </div>
     ${destacados.length ? `
       <h3 style="font-family:var(--font-serif); margin-bottom:15px;">⭐ Destacados por el profesor</h3>
@@ -258,7 +258,7 @@ function cardHtml(t) {
       <div class="text-excerpt">${esc(plainText)}</div>
       <div style="border-top:1px solid var(--border-color); padding-top:15px; margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
+          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
           <span style="font-size:14px; font-weight:500;">${esc(t.author_name)}</span>
         </div>
         <span style="font-size:14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
@@ -371,7 +371,7 @@ async function openText(id) {
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         <span style="color:var(--text-muted);">${formatDate(t.created_at)}</span>
         <div style="display:flex; align-items:center; gap:8px;">
-          <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
+          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
           <span style="font-weight:500;">${esc(t.author_name)}</span>
         </div>
         <button class="btn-outline" onclick="toggleLike('${t.id}', ${yaDioLike})"
@@ -395,7 +395,7 @@ async function openText(id) {
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-            <img src="${getAvatar(c.author_username, c.author_name)}" class="avatar avatar-sm">
+            <img src="${esc(getAvatar(c.author_username, c.author_name))}" class="avatar avatar-sm">
             <span style="font-weight:600; font-size:13px;">${esc(c.author_name)}</span>
             <span style="font-weight:400; color:var(--text-muted); font-size:12px;">${formatDate(c.created_at)}</span>
           </div>
@@ -473,7 +473,7 @@ function renderMiembros() {
     <div style="display:grid; gap:15px;">
       ${allUsers.map(u => `
         <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; align-items:center; gap:15px;">
-          <img src="${u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`}" class="avatar">
+          <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
           <div style="flex:1;">
             <div style="font-weight:600;">${esc(u.name)}
               ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesora</span>' : ''}
