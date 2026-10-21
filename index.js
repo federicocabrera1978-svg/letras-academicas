@@ -20,6 +20,8 @@ let editingTextId = null;
 let appInitialized = false;
 
 // Utilidades DOM
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function safeHtml(h){ return DOMPurify.sanitize(h || '', { ALLOWED_TAGS:['p','br','strong','b','em','i','u','blockquote','ol','ul','li','span'], ALLOWED_ATTR:['class'] }); }
 function showEl(id){ document.getElementById(id).classList.remove('hidden'); }
 function hideEl(id){ document.getElementById(id).classList.add('hidden'); }
 function formatDate(d){
@@ -155,7 +157,7 @@ function navigate(page) {
         const data = JSON.parse(borrador);
         titleInput.value = data.title || '';
         typeInput.value  = data.type  || 'ensayo';
-        quillEditor.root.innerHTML = data.body || '';
+        quillEditor.root.innerHTML = safeHtml(data.body);
       }
     }
 
@@ -193,7 +195,7 @@ function renderDashboard() {
   const recientes  = allTexts.slice(0, 5);
   return `
     <div class="page-header">
-      <h1>Bienvenido/a, ${currentUser.name.split(' ')[0]} 👋</h1>
+      <h1>Bienvenido/a, ${esc(currentUser.name.split(' ')[0])} 👋</h1>
     </div>
     ${destacados.length ? `
       <h3 style="font-family:var(--font-serif); margin-bottom:15px;">⭐ Destacados por el profesor</h3>
@@ -243,21 +245,21 @@ function renderMisTextos() {
 
 function cardHtml(t) {
   const tempDiv     = document.createElement('div');
-  tempDiv.innerHTML = t.body;
+  tempDiv.innerHTML = safeHtml(t.body);
   const plainText   = tempDiv.textContent || tempDiv.innerText || "";
   return `
     <div class="card" onclick="openText('${t.id}')">
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
-        <span class="tag ${t.type}">${t.type}</span>
+        <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         ${t.destacado ? '<span style="font-size:13px;">⭐ Destacado</span>' : ''}
         <span style="font-size:12px; color:var(--text-muted); margin-left:auto;">${formatDate(t.created_at)}</span>
       </div>
-      <h2>${t.title}</h2>
-      <div class="text-excerpt">${plainText}</div>
+      <h2>${esc(t.title)}</h2>
+      <div class="text-excerpt">${esc(plainText)}</div>
       <div style="border-top:1px solid var(--border-color); padding-top:15px; margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
-          <span style="font-size:14px; font-weight:500;">${t.author_name}</span>
+          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          <span style="font-size:14px; font-weight:500;">${esc(t.author_name)}</span>
         </div>
         <span style="font-size:14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
       </div>
@@ -304,7 +306,7 @@ function editText(id) {
   navigate('nuevo');
   document.getElementById('f-title').value                = t.title;
   document.getElementById('f-type').value                 = t.type;
-  quillEditor.root.innerHTML                              = t.body;
+  quillEditor.root.innerHTML                              = safeHtml(t.body);
   document.getElementById('btn-pub').textContent          = "Guardar cambios";
   document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
 }
@@ -314,7 +316,7 @@ async function submitText() {
   const type      = document.getElementById('f-type').value;
   const bodyHTML  = quillEditor.root.innerHTML;
   const tempDiv   = document.createElement('div');
-  tempDiv.innerHTML = bodyHTML;
+  tempDiv.innerHTML = safeHtml(bodyHTML);
   const textPlain = tempDiv.textContent || tempDiv.innerText || "";
 
   if (!title || !textPlain) { alert('Por favor, completa el título y el contenido.'); return; }
@@ -364,13 +366,13 @@ async function openText(id) {
   ca.innerHTML = `
     <button class="btn-outline" onclick="navigate('textos')" style="margin-bottom:20px;">← Volver</button>
     <div style="background:var(--bg-card); padding:40px; border-radius:var(--r); border:1px solid var(--border-color); margin-bottom:20px;">
-      <h1 style="font-family:var(--font-serif); font-size:36px; line-height:1.2; margin-bottom:20px;">${t.title}</h1>
+      <h1 style="font-family:var(--font-serif); font-size:36px; line-height:1.2; margin-bottom:20px;">${esc(t.title)}</h1>
       <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; margin-bottom:30px;">
-        <span class="tag ${t.type}">${t.type}</span>
+        <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         <span style="color:var(--text-muted);">${formatDate(t.created_at)}</span>
         <div style="display:flex; align-items:center; gap:8px;">
-          <img src="${getAvatar(t.author_username, t.author_name)}" class="avatar avatar-sm">
-          <span style="font-weight:500;">${t.author_name}</span>
+          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          <span style="font-weight:500;">${esc(t.author_name)}</span>
         </div>
         <button class="btn-outline" onclick="toggleLike('${t.id}', ${yaDioLike})"
           style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
@@ -385,7 +387,7 @@ async function openText(id) {
           <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" onclick="deleteText('${t.id}')">🗑️ Eliminar</button>
         ` : ''}
       </div>
-      <div style="font-family:var(--font-serif); font-size:17px; line-height:1.8; color:var(--text-main);">${t.body}</div>
+      <div style="font-family:var(--font-serif); font-size:17px; line-height:1.8; color:var(--text-main);">${safeHtml(t.body)}</div>
     </div>
 
     <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
@@ -393,11 +395,11 @@ async function openText(id) {
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-            <img src="${getAvatar(c.author_username, c.author_name)}" class="avatar avatar-sm">
-            <span style="font-weight:600; font-size:13px;">${c.author_name}</span>
+            <img src="${esc(getAvatar(c.author_username, c.author_name))}" class="avatar avatar-sm">
+            <span style="font-weight:600; font-size:13px;">${esc(c.author_name)}</span>
             <span style="font-weight:400; color:var(--text-muted); font-size:12px;">${formatDate(c.created_at)}</span>
           </div>
-          <div style="color:var(--text-main); line-height:1.6;">${c.body}</div>
+          <div style="color:var(--text-main); line-height:1.6; white-space:pre-wrap;">${esc(c.body)}</div>
         </div>
       `).join('') : '<p style="color:var(--text-muted); margin-bottom:20px;">Aún no hay devoluciones. ¡Sé el primero!</p>'}
       <h4 style="margin-bottom:10px;">Añadir devolución</h4>
@@ -442,7 +444,6 @@ async function toggleLike(id, yaDioLike) {
     return;
   }
   await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
-  await db.from('textos').update({ likes: (allTexts.find(t => t.id === id)?.likes || 0) + 1 }).eq('id', id);
   await refreshData();
   openText(id);
 }
@@ -472,16 +473,16 @@ function renderMiembros() {
     <div style="display:grid; gap:15px;">
       ${allUsers.map(u => `
         <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; align-items:center; gap:15px;">
-          <img src="${u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`}" class="avatar">
+          <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
           <div style="flex:1;">
-            <div style="font-weight:600;">${u.name}
+            <div style="font-weight:600;">${esc(u.name)}
               ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesora</span>' : ''}
             </div>
-            <div style="color:var(--text-muted); font-size:13px;">@${u.username}</div>
+            <div style="color:var(--text-muted); font-size:13px;">@${esc(u.username)}</div>
           </div>
           ${currentUser.rol === 'profesor' && u.id !== currentUser.id ? `
             <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);"
-              onclick="eliminarMiembro('${u.id}', '${u.name}')">🗑️ Eliminar</button>
+              onclick="eliminarMiembro('${u.id}', allUsers.find(x => x.id === '${u.id}')?.name || '')">🗑️ Eliminar</button>
           ` : ''}
         </div>
       `).join('')}
@@ -513,9 +514,9 @@ async function loadLandingDestacados() {
 
   contenedor.innerHTML = data.map(t => `
     <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:20px; margin-bottom:15px;">
-      <div style="font-size:12px; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">${t.type}</div>
-      <div style="font-family:var(--font-serif); font-size:18px; font-weight:600; margin-bottom:8px;">${t.title}</div>
-      <div style="font-size:13px; color:#cbd5e1;">Por ${t.author_name}</div>
+      <div style="font-size:12px; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">${esc(t.type)}</div>
+      <div style="font-family:var(--font-serif); font-size:18px; font-weight:600; margin-bottom:8px;">${esc(t.title)}</div>
+      <div style="font-size:13px; color:#cbd5e1;">Por ${esc(t.author_name)}</div>
     </div>
   `).join('');
 }
