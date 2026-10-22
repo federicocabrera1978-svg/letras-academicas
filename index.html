@@ -2,14 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Letras Académicas - Instituto Belgrano</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letras Académicas · IES 9-008 Manuel Belgrano</title>
+<meta name="description" content="Plataforma de escritura del IES 9-008 Manuel Belgrano: consignas, escritura y devolución entre pares.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet" integrity="sha384-07UbSXbd8HpaOfxZsiO6Y8H1HTX6v0J96b5qP6PKSpYEuSZSYD4GFFHlLRjvjVrL" crossorigin="anonymous">
 <link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="landing.css">
 
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" integrity="sha384-XQqX/4yiUGu+oyr87jvWzRuqBUK/adrY0DunhL+tID9m/9dwSpV8h9Fk/Sg6ifVQ" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js" integrity="sha384-UagCvVPT5XXA0Hx+nJYUAGBFseHT9zBgpJMSebsAxl9lciTwbT+39j5VfRjdP5Tp" crossorigin="anonymous"></script>
@@ -19,22 +21,83 @@
 <div id="app">
 
   <!-- LANDING PÚBLICA -->
-  <div id="landing-screen" class="landing-screen">
-    <div class="landing-hero">
-      <h1>Letras <span style="color:#fca5a5;font-style:italic">Académicas</span></h1>
-      <p style="font-size:1.2rem; max-width:600px; margin:0 auto; color:#cbd5e1;">
-        Alfabetización Académica · Instituto Belgrano<br>
-        Espacio de escritura, lectura y devolución entre pares.
-      </p>
-      <button class="google-btn" id="login-google-btn">
-        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/google/google-original.svg" alt="Google" style="width:20px;">
-        Ingresar con Google
-      </button>
-    </div>
-    <div class="landing-preview">
-      <h2 style="font-family:var(--font-serif); margin-bottom:30px;">📚 Textos destacados</h2>
-      <div id="landing-textos"></div>
-    </div>
+  <div id="landing-screen" class="landing-screen lp">
+    <header class="lp-nav">
+      <a class="lp-logo" href="#inicio">Letras <em>Académicas</em></a>
+      <button class="lp-btn lp-btn-ghost js-login" type="button">Ingresar</button>
+    </header>
+
+    <main id="inicio">
+      <section class="lp-hero" aria-labelledby="lp-title">
+        <div class="lp-hero-copy">
+          <p class="lp-kicker">IES 9-008 Manuel Belgrano · Alfabetización académica</p>
+          <h1 id="lp-title" class="lp-title">Cada voz<br>empieza con <em>una línea</em>.</h1>
+          <p class="lp-lead">Un espacio donde la profesora propone, cada estudiante escribe a su ritmo y el grupo se lee y se devuelve palabras. Aunque cueste, se aprende escribiendo.</p>
+          <div class="lp-cta">
+            <button class="google-btn" id="login-google-btn" type="button">
+              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/google/google-original.svg" alt="" width="20" height="20">
+              Ingresar con Google
+            </button>
+            <a class="lp-btn lp-btn-ghost" href="#probar">Probar sin cuenta ↓</a>
+          </div>
+        </div>
+
+        <div class="lp-paper" id="probar" aria-labelledby="lp-try-title">
+          <div class="lp-paper-head">
+            <span class="lp-tag">Microescritura</span>
+            <button class="lp-link" id="lp-otra" type="button">Otra consigna ↻</button>
+          </div>
+          <h2 id="lp-try-title" class="lp-prompt"><span id="lp-prompt-text">Escribí 3 líneas sobre el olor de tu casa un domingo.</span><span class="lp-caret" aria-hidden="true"></span></h2>
+          <label class="sr-only" for="lp-try">Tu texto</label>
+          <textarea id="lp-try" class="lp-try" rows="4" maxlength="600" placeholder="Empezá por cualquier palabra…"></textarea>
+          <div class="lp-paper-foot">
+            <span id="lp-count" class="lp-count" aria-live="polite">0 palabras</span>
+            <button class="lp-btn lp-btn-accent js-login" id="lp-publicar" type="button" disabled>Ingresar con Google para publicarlo</button>
+          </div>
+          <p class="lp-note">Queda solo en tu pantalla: no se guarda ni se envía.</p>
+        </div>
+      </section>
+
+      <section class="lp-steps" aria-labelledby="lp-steps-title">
+        <h2 id="lp-steps-title" class="lp-h2">Cómo funciona</h2>
+        <ol class="lp-steps-list">
+          <li><span class="lp-num">1</span><h3>Consigna</h3><p>La docente propone un disparador corto: una imagen, una pregunta, tres palabras.</p></li>
+          <li><span class="lp-num">2</span><h3>Escribir</h3><p>Cada estudiante responde a su ritmo. Se aceptan entregas tarde: lo importante es escribir.</p></li>
+          <li><span class="lp-num">3</span><h3>Devolución</h3><p>El grupo se lee y comenta con respeto. La profe destaca los textos que salen al mundo.</p></li>
+        </ol>
+      </section>
+
+      <section class="lp-roles" aria-label="Para quién es">
+        <article class="lp-role">
+          <p class="lp-kicker">Para docentes</p>
+          <h3>Tu aula de escritura, sin papeles.</h3>
+          <ul>
+            <li>Cursos con código de invitación</li>
+            <li>Consignas con fecha y extensión sugerida</li>
+            <li>Ves quién escribió y destacás lo mejor</li>
+          </ul>
+        </article>
+        <article class="lp-role">
+          <p class="lp-kicker">Para estudiantes</p>
+          <h3>Escribir sin miedo a equivocarse.</h3>
+          <ul>
+            <li>Consignas cortas para arrancar de a poco</li>
+            <li>Compañeros que leen lo que escribís</li>
+            <li>Tus textos guardados en un solo lugar</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="lp-gallery" aria-labelledby="lp-gal-title">
+        <h2 id="lp-gal-title" class="lp-h2">Textos destacados</h2>
+        <div id="landing-textos" class="lp-cards"></div>
+      </section>
+    </main>
+
+    <footer class="lp-foot">
+      <p>Letras <em>Académicas</em> · IES 9-008 Manuel Belgrano</p>
+      <button class="lp-btn lp-btn-ghost js-login" type="button">Empezar a escribir</button>
+    </footer>
   </div>
 
   <!-- APP SHELL -->
@@ -69,6 +132,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js" integrity="sha384-AOnYUgW6MQR78EvTqtkbNavz7dVI7dtLm7QdcIMBoy06adLIzNT40hHPYl9Rr5m5" crossorigin="anonymous"></script>
 <script src="index.js"></script>
+<script src="landing.js"></script>
 
 </body>
 </html>
