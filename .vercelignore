@@ -1,0 +1,7 @@
+.github
+.vercelignore
+README.md
+*.sql
+*.patch
+.env*
+backup*
