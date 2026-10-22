@@ -539,17 +539,25 @@ async function loadLandingDestacados() {
 
   const contenedor = document.getElementById('landing-textos');
   if (!data || data.length === 0) {
-    contenedor.innerHTML = '<p style="color:#94a3b8;">No hay textos destacados aún.</p>';
+    contenedor.innerHTML = `
+      <div class="lp-empty">
+        <p>Todavía no hay textos destacados. ¿Y si el primero es el tuyo?</p>
+        <a class="lp-btn lp-btn-accent" href="#probar">Probar la consigna del día</a>
+      </div>`;
     return;
   }
-
-  contenedor.innerHTML = data.map(t => `
-    <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:20px; margin-bottom:15px;">
-      <div style="font-size:12px; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">${esc(t.type)}</div>
-      <div style="font-family:var(--font-serif); font-size:18px; font-weight:600; margin-bottom:8px;">${esc(t.title)}</div>
-      <div style="font-size:13px; color:#cbd5e1;">Por ${esc(t.author_name)}</div>
-    </div>
-  `).join('');
+  contenedor.innerHTML = data.slice(0, 9).map(t => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = safeHtml(t.body || '');
+    const extracto = (tmp.textContent || '').trim().slice(0, 180);
+    return `
+    <article class="lp-card">
+      <span class="lp-card-type">${esc(t.type)}</span>
+      <h3>${esc(t.title)}</h3>
+      ${extracto ? `<p>${esc(extracto)}${extracto.length >= 180 ? '…' : ''}</p>` : ''}
+      <span class="lp-card-by">Por ${esc(t.author_name)}</span>
+    </article>`;
+  }).join('');
 }
 
 // Al cargar la página, verificar si ya hay sesión activa
