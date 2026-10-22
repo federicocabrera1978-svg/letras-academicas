@@ -284,7 +284,7 @@ function renderNuevo() {
     <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
       <div style="margin-bottom:20px;">
         <label style="display:block; margin-bottom:8px; font-weight:500;">Título</label>
-        <input id="f-title" type="text" placeholder="Ej: Análisis del discurso en medios digitales"
+        <input id="f-title" type="text" maxlength="200" placeholder="Ej: Análisis del discurso en medios digitales"
           style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); font-size:15px; background:var(--bg-body); color:var(--text-main);">
       </div>
       <div style="margin-bottom:20px;">
@@ -324,6 +324,7 @@ function editText(id) {
 
 async function submitText() {
   const title     = document.getElementById('f-title').value.trim();
+  if (title.length > 200) { alert('El título no puede superar los 200 caracteres.'); return; }
   const type      = document.getElementById('f-type').value;
   const bodyHTML  = quillEditor.root.innerHTML;
   const tempDiv   = document.createElement('div');
@@ -340,7 +341,7 @@ async function submitText() {
       await db.from('textos').update({ title, type, body: bodyHTML }).eq('id', editingTextId);
       editingTextId = null;
     } else {
-      await db.from('textos').insert([{
+      const { error: insErr } = await db.from('textos').insert([{
         title,
         author_username: currentUser.username,
         author_name:     currentUser.name,
@@ -351,13 +352,14 @@ async function submitText() {
         ...(cursoGeneralId ? { curso_id: cursoGeneralId } : {}),
         date:            new Date().toISOString()
       }]);
+      if (insErr) throw insErr;
     }
     await refreshData();
     localStorage.removeItem('borrador');
     navigate('mis-textos');
   } catch (err) {
     console.error('Error al guardar:', err);
-    alert('Hubo un error al guardar. Intentá de nuevo.');
+    alert('Hubo un error al guardar: ' + (err?.message || 'intentá de nuevo.'));
     btn.disabled = false;
   }
 }
@@ -415,7 +417,7 @@ async function openText(id) {
         </div>
       `).join('') : '<p style="color:var(--text-muted); margin-bottom:20px;">Aún no hay devoluciones. ¡Sé el primero!</p>'}
       <h4 style="margin-bottom:10px;">Añadir devolución</h4>
-      <textarea id="com-body" rows="4" placeholder="Escribí tu devolución académica..."
+      <textarea id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."
         style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); font-size:14px; background:var(--bg-body); color:var(--text-main); resize:vertical;"></textarea>
       <button class="btn-primary" style="margin-top:12px;" onclick="submitComment('${t.id}')">Enviar devolución</button>
     </div>
@@ -425,17 +427,19 @@ async function openText(id) {
 
 async function submitComment(textoId) {
   const body = document.getElementById('com-body').value.trim();
+  if (!body || body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   if (!body) { alert('Escribí algo antes de enviar.'); return; }
   
   const btn = document.querySelector('[onclick="submitComment(\'' + textoId + '\')"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   
-  await db.from('comentarios').insert([{
+  const { error: comErr } = await db.from('comentarios').insert([{
     texto_id:        textoId,
     author_username: currentUser.username,
     author_name:     currentUser.name,
     body:            body
   }]);
+  if (comErr) { alert('No se pudo enviar: ' + comErr.message); if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; } return; }
   openText(textoId);
 }
 
