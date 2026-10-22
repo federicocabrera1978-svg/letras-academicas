@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet" integrity="sha384-07UbSXbd8HpaOfxZsiO6Y8H1HTX6v0J96b5qP6PKSpYEuSZSYD4GFFHlLRjvjVrL" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" integrity="sha384-ecIckRi4QlKYya/FQUbBUjS4qp65jF/J87Guw5uzTbO1C1Jfa/6kYmd6dXUF6D7i" crossorigin="anonymous">
 <link rel="stylesheet" href="index.css">
 <link rel="stylesheet" href="landing.css">
 
@@ -109,7 +109,7 @@
         <img id="topbar-avatar" class="avatar hidden" src="" alt="Avatar">
         <span id="topbar-uname" style="font-weight:500;"></span>
       </div>
-      <button id="btn-logout" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding:6px 12px;" onclick="doLogout()">
+      <button id="btn-logout" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding:6px 12px;" data-action="logout">
         🚪 <span>Salir</span>
       </button>
     </div>
@@ -118,19 +118,19 @@
   <div class="main hidden" id="main-layout">
     <div class="sidebar">
       <div style="padding:0 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Menú</div>
-      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span> <span>◈ Inicio</span></div>
-      <div class="nav-item" data-page="textos"     onclick="navigate('textos')">    <span class="nav-icon">📚</span> <span>◇ Textos</span></div>
-      <div class="nav-item" data-page="nuevo"      onclick="navigate('nuevo')">     <span class="nav-icon">✍️</span> <span>＋ Publicar</span></div>
-      <div class="nav-item" data-page="miembros"   onclick="navigate('miembros')">  <span class="nav-icon">👥</span> <span>◎ Compañeros</span></div>
+      <div class="nav-item active" data-page="dashboard" data-action="navigate" data-arg="dashboard"><span class="nav-icon">🏠</span> <span>◈ Inicio</span></div>
+      <div class="nav-item" data-page="textos"     data-action="navigate" data-arg="textos">    <span class="nav-icon">📚</span> <span>◇ Textos</span></div>
+      <div class="nav-item" data-page="nuevo"      data-action="navigate" data-arg="nuevo">     <span class="nav-icon">✍️</span> <span>＋ Publicar</span></div>
+      <div class="nav-item" data-page="miembros"   data-action="navigate" data-arg="miembros">  <span class="nav-icon">👥</span> <span>◎ Compañeros</span></div>
       <div style="padding:20px 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Mi cuenta</div>
-      <div class="nav-item" data-page="mis-textos" onclick="navigate('mis-textos')"><span class="nav-icon">📁</span> <span>◻ Mis textos</span></div>
+      <div class="nav-item" data-page="mis-textos" data-action="navigate" data-arg="mis-textos"><span class="nav-icon">📁</span> <span>◻ Mis textos</span></div>
     </div>
     <div class="content" id="content-area"></div>
   </div>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js" integrity="sha384-AOnYUgW6MQR78EvTqtkbNavz7dVI7dtLm7QdcIMBoy06adLIzNT40hHPYl9Rr5m5" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js" integrity="sha384-utBUCeG4SYaCm4m7GQZYr8Hy8Fpy3V4KGjBZaf4WTKOcwhCYpt/0PfeEe3HNlwx8" crossorigin="anonymous"></script>
 <script src="index.js"></script>
 <script src="landing.js"></script>
 

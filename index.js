@@ -25,7 +25,13 @@ const esAdmin   = u => u && u.rol === 'admin';
 
 // Utilidades DOM
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function safeHtml(h){ return DOMPurify.sanitize(h || '', { ALLOWED_TAGS:['p','br','strong','b','em','i','u','blockquote','ol','ul','li','span'], ALLOWED_ATTR:['class'] }); }
+function safeHtml(h){ return DOMPurify.sanitize(h || '', { ALLOWED_TAGS:['p','br','strong','b','em','i','u','blockquote','ol','ul','li','span','h2','h3'], ALLOWED_ATTR:['class'] }); }
+// Quill 2: cargar HTML guardado (convierte <ul>/<ol> al modelo de Quill) y exportar HTML semántico
+function cargarEnEditor(h){ quillEditor.setContents([]); quillEditor.clipboard.dangerouslyPasteHTML(0, safeHtml(h)); }
+function htmlDelEditor(){
+  if (quillEditor.getLength() <= 1) return '';
+  return quillEditor.getSemanticHTML().replace(/&nbsp;/g, ' ').replace(/(<p><\/p>)+$/, '');
+}
 function showEl(id){ document.getElementById(id).classList.remove('hidden'); }
 function hideEl(id){ document.getElementById(id).classList.add('hidden'); }
 function formatDate(d){
@@ -168,7 +174,7 @@ function navigate(page) {
         const data = JSON.parse(borrador);
         titleInput.value = data.title || '';
         typeInput.value  = data.type  || 'ensayo';
-        quillEditor.root.innerHTML = safeHtml(data.body);
+        cargarEnEditor(data.body);
       }
     }
 
@@ -182,7 +188,7 @@ function navigate(page) {
       localStorage.setItem('borrador', JSON.stringify({
         title: titleInput.value,
         type:  typeInput.value,
-        body:  quillEditor.root.innerHTML
+        body:  htmlDelEditor()
       }));
     }, 10000);
 
@@ -223,7 +229,7 @@ function renderTextos() {
     <div class="page-header"><h1>Biblioteca Virtual</h1></div>
     <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
       ${['todos','ensayo','informe','argumentativo','narrativo','expositivo','otro'].map(f => `
-        <button class="btn-outline" onclick="filterTextos('${f}')" id="f-${f}"
+        <button class="btn-outline" data-action="filter" data-arg="${f}" id="f-${f}"
           style="${f === 'todos' ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">
           ${f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
@@ -249,7 +255,7 @@ function renderMisTextos() {
   const mis = allTexts.filter(t => t.author_username === currentUser.username);
   return `
     <div class="page-header"><h1>Mis textos</h1></div>
-    <button class="btn-primary" onclick="navigate('nuevo')" style="margin-bottom:20px;">＋ Publicar nuevo texto</button>
+    <button class="btn-primary" data-action="navigate" data-arg="nuevo" style="margin-bottom:20px;">＋ Publicar nuevo texto</button>
     ${mis.length ? mis.map(cardHtml).join('') : '<p style="color:var(--text-muted);">Todavía no publicaste ningún texto.</p>'}
   `;
 }
@@ -259,7 +265,7 @@ function cardHtml(t) {
   tempDiv.innerHTML = safeHtml(t.body);
   const plainText   = tempDiv.textContent || tempDiv.innerText || "";
   return `
-    <div class="card" onclick="openText('${t.id}')">
+    <div class="card" data-action="open" data-id="${esc(t.id)}">
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         ${t.destacado ? '<span style="font-size:13px;">⭐ Destacado</span>' : ''}
@@ -302,7 +308,7 @@ function renderNuevo() {
         <label style="display:block; margin-bottom:8px; font-weight:500;">Contenido</label>
         <div id="editor-container" style="background:var(--bg-body); min-height:250px;"></div>
       </div>
-      <button class="btn-primary" id="btn-pub" onclick="submitText()">Publicar en la plataforma</button>
+      <button class="btn-primary" id="btn-pub" data-action="submit-text">Publicar en la plataforma</button>
     </div>`;
 }
 
@@ -317,7 +323,7 @@ function editText(id) {
   navigate('nuevo');
   document.getElementById('f-title').value                = t.title;
   document.getElementById('f-type').value                 = t.type;
-  quillEditor.root.innerHTML                              = safeHtml(t.body);
+  cargarEnEditor(t.body);
   document.getElementById('btn-pub').textContent          = "Guardar cambios";
   document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
 }
@@ -326,7 +332,7 @@ async function submitText() {
   const title     = document.getElementById('f-title').value.trim();
   if (title.length > 200) { alert('El título no puede superar los 200 caracteres.'); return; }
   const type      = document.getElementById('f-type').value;
-  const bodyHTML  = quillEditor.root.innerHTML;
+  const bodyHTML  = htmlDelEditor();
   const tempDiv   = document.createElement('div');
   tempDiv.innerHTML = safeHtml(bodyHTML);
   const textPlain = tempDiv.textContent || tempDiv.innerText || "";
@@ -378,7 +384,7 @@ async function openText(id) {
   const yaDioLike = !!myLike;
 
   ca.innerHTML = `
-    <button class="btn-outline" onclick="navigate('textos')" style="margin-bottom:20px;">← Volver</button>
+    <button class="btn-outline" data-action="navigate" data-arg="textos" style="margin-bottom:20px;">← Volver</button>
     <div style="background:var(--bg-card); padding:40px; border-radius:var(--r); border:1px solid var(--border-color); margin-bottom:20px;">
       <h1 style="font-family:var(--font-serif); font-size:36px; line-height:1.2; margin-bottom:20px;">${esc(t.title)}</h1>
       <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; margin-bottom:30px;">
@@ -388,17 +394,17 @@ async function openText(id) {
           <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
           <span style="font-weight:500;">${esc(t.author_name)}</span>
         </div>
-        <button class="btn-outline" onclick="toggleLike('${t.id}', ${yaDioLike})"
+        <button class="btn-outline" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}"
           style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
         ${esDocente(currentUser) ? `
-          <button class="btn-outline" onclick="toggleDestacado('${t.id}', ${t.destacado})">
+          <button class="btn-outline" data-action="destacar" data-id="${esc(t.id)}" data-on="${t.destacado ? '1' : '0'}">
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
         ${currentUser.username === t.author_username ? `
-          <button class="btn-outline" style="color:#0284c7;border-color:#0284c7;" onclick="editText('${t.id}')">✏️ Editar</button>
-          <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" onclick="deleteText('${t.id}')">🗑️ Eliminar</button>
+          <button class="btn-outline" style="color:#0284c7;border-color:#0284c7;" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>
+          <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>
         ` : ''}
       </div>
       <div style="font-family:var(--font-serif); font-size:17px; line-height:1.8; color:var(--text-main);">${safeHtml(t.body)}</div>
@@ -419,7 +425,7 @@ async function openText(id) {
       <h4 style="margin-bottom:10px;">Añadir devolución</h4>
       <textarea id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."
         style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); font-size:14px; background:var(--bg-body); color:var(--text-main); resize:vertical;"></textarea>
-      <button class="btn-primary" style="margin-top:12px;" onclick="submitComment('${t.id}')">Enviar devolución</button>
+      <button class="btn-primary" style="margin-top:12px;" data-action="comment" data-id="${esc(t.id)}">Enviar devolución</button>
     </div>
   `;
   ca.scrollTop = 0;
@@ -430,7 +436,7 @@ async function submitComment(textoId) {
   if (!body || body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   if (!body) { alert('Escribí algo antes de enviar.'); return; }
   
-  const btn = document.querySelector('[onclick="submitComment(\'' + textoId + '\')"]');
+  const btn = document.querySelector('[data-action="comment"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   
   const { error: comErr } = await db.from('comentarios').insert([{
@@ -498,12 +504,12 @@ function renderMiembros() {
           </div>
           ${esAdmin(currentUser) && u.id !== currentUser.id && !esAdmin(u) ? `
             <button class="btn-outline" data-uid="${esc(u.id)}" data-habilitar="${u.rol === 'profesor' ? '0' : '1'}"
-              onclick="habilitarDocente(this.dataset.uid, this.dataset.habilitar === '1')">
+              data-action="docente">
               ${u.rol === 'profesor' ? '↩️ Quitar docente' : '👨‍🏫 Habilitar docente'}</button>
           ` : ''}
           ${esDocente(currentUser) && u.id !== currentUser.id ? `
             <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);"
-              onclick="eliminarMiembro('${u.id}', allUsers.find(x => x.id === '${u.id}')?.name || '')">🗑️ Eliminar</button>
+              data-action="eliminar-miembro" data-uid="${esc(u.id)}">🗑️ Eliminar</button>
           ` : ''}
         </div>
       `).join('')}
@@ -566,4 +572,26 @@ db.auth.getSession().then(({ data: { session } }) => {
     loadLandingDestacados();
   }
   // Si hay sesión, onAuthStateChange muestra la app automáticamente
+});
+
+// Delegación de eventos (CSP sin 'unsafe-inline')
+const ACCIONES = {
+  logout:            ()  => doLogout(),
+  navigate:          el  => navigate(el.dataset.arg),
+  filter:            el  => filterTextos(el.dataset.arg),
+  open:              el  => openText(el.dataset.id),
+  'submit-text':     ()  => submitText(),
+  like:              el  => toggleLike(el.dataset.id, el.dataset.on === '1'),
+  destacar:          el  => toggleDestacado(el.dataset.id, el.dataset.on === '1'),
+  edit:              el  => editText(el.dataset.id),
+  delete:            el  => deleteText(el.dataset.id),
+  comment:           el  => submitComment(el.dataset.id),
+  docente:           el  => habilitarDocente(el.dataset.uid, el.dataset.habilitar === '1'),
+  'eliminar-miembro': el => eliminarMiembro(el.dataset.uid, allUsers.find(x => x.id === el.dataset.uid)?.name || '')
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el || !ACCIONES[el.dataset.action]) return;
+  if (el.tagName === 'A') e.preventDefault();
+  ACCIONES[el.dataset.action](el);
 });
