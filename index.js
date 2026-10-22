@@ -18,6 +18,10 @@ let allUsers      = [];
 let quillEditor   = null;
 let editingTextId = null;
 let appInitialized = false;
+let cursoGeneralId = null;   // Fase 1: todo texto nuevo va al curso General
+
+const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
+const esAdmin   = u => u && u.rol === 'admin';
 
 // Utilidades DOM
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -75,17 +79,24 @@ db.auth.onAuthStateChange(async (event, session) => {
       username:   baseUsername,
       name:       name,
       color:      '#2d5a8e',
-      avatar_url: avatarUrl,
-      rol:        (email === 'paulabaigorriabernal@gmail.com') ? 'profesor' : 'alumno'
+      avatar_url: avatarUrl
     };
     await db.from('perfiles').insert([newProfile]);
-    userProfile = newProfile;
+    // el rol lo asigna la base (siempre 'alumno'); releemos el perfil real
+    const { data: creado } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+    userProfile = creado || { ...newProfile, rol: 'alumno' };
   } else if (userProfile.avatar_url !== avatarUrl) {
     await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
     userProfile.avatar_url = avatarUrl;
   }
 
   currentUser = userProfile;
+
+  // Fase 1: asegurar membresía en el curso General (idempotente)
+  try {
+    const { data: cid, error } = await db.rpc('unirse_a_curso', { codigo: 'GENERAL' });
+    if (!error) cursoGeneralId = cid;
+  } catch (e) { console.warn('No se pudo unir al curso General', e); }
   document.getElementById('topbar-uname').textContent = currentUser.name;
   document.getElementById('topbar-avatar').src = currentUser.avatar_url;
   showEl('topbar-avatar');
@@ -337,6 +348,7 @@ async function submitText() {
         body:            bodyHTML,
         destacado:       false,
         likes:           0,
+        ...(cursoGeneralId ? { curso_id: cursoGeneralId } : {}),
         date:            new Date().toISOString()
       }]);
     }
@@ -378,7 +390,7 @@ async function openText(id) {
           style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
-        ${currentUser.rol === 'profesor' ? `
+        ${esDocente(currentUser) ? `
           <button class="btn-outline" onclick="toggleDestacado('${t.id}', ${t.destacado})">
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
@@ -476,17 +488,32 @@ function renderMiembros() {
           <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
           <div style="flex:1;">
             <div style="font-weight:600;">${esc(u.name)}
-              ${u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Profesora</span>' : ''}
+              ${esAdmin(u) ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">⭐ Admin</span>' : u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Docente</span>' : ''}
             </div>
             <div style="color:var(--text-muted); font-size:13px;">@${esc(u.username)}</div>
           </div>
-          ${currentUser.rol === 'profesor' && u.id !== currentUser.id ? `
+          ${esAdmin(currentUser) && u.id !== currentUser.id && !esAdmin(u) ? `
+            <button class="btn-outline" data-uid="${esc(u.id)}" data-habilitar="${u.rol === 'profesor' ? '0' : '1'}"
+              onclick="habilitarDocente(this.dataset.uid, this.dataset.habilitar === '1')">
+              ${u.rol === 'profesor' ? '↩️ Quitar docente' : '👨‍🏫 Habilitar docente'}</button>
+          ` : ''}
+          ${esDocente(currentUser) && u.id !== currentUser.id ? `
             <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);"
               onclick="eliminarMiembro('${u.id}', allUsers.find(x => x.id === '${u.id}')?.name || '')">🗑️ Eliminar</button>
           ` : ''}
         </div>
       `).join('')}
     </div>`;
+}
+
+async function habilitarDocente(id, habilitar) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) return;
+  if (!confirm(`¿${habilitar ? 'Habilitar' : 'Quitar'} como docente a ${u.name}?`)) return;
+  const { error } = await db.rpc('habilitar_docente', { p_user: id, p_habilitar: habilitar });
+  if (error) { alert('No se pudo cambiar el rol: ' + error.message); return; }
+  await refreshData();
+  navigate('miembros');
 }
 
 async function eliminarMiembro(id, nombre) {
