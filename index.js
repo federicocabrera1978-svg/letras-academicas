@@ -215,22 +215,21 @@ function renderDashboard() {
       <h1>Bienvenido/a, ${esc(currentUser.name.split(' ')[0])} 👋</h1>
     </div>
     ${destacados.length ? `
-      <h3 style="font-family:var(--font-serif); margin-bottom:15px;">⭐ Destacados por el profesor</h3>
+      <h3 class="u-s7">⭐ Destacados por el profesor</h3>
       ${destacados.map(cardHtml).join('')}
-      <hr style="margin:30px 0; border-color:var(--border-color);">
+      <hr class="u-s8">
     ` : ''}
-    <h3 style="font-family:var(--font-serif); margin-bottom:15px;">📋 Publicaciones recientes</h3>
-    ${recientes.length ? recientes.map(cardHtml).join('') : '<p style="color:var(--text-muted);">Aún no hay publicaciones.</p>'}
+    <h3 class="u-s7">📋 Publicaciones recientes</h3>
+    ${recientes.length ? recientes.map(cardHtml).join('') : '<p class="u-s9">Aún no hay publicaciones.</p>'}
   `;
 }
 
 function renderTextos() {
   return `
     <div class="page-header"><h1>Biblioteca Virtual</h1></div>
-    <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+    <div class="u-s10">
       ${['todos','ensayo','informe','argumentativo','narrativo','expositivo','otro'].map(f => `
-        <button class="btn-outline" data-action="filter" data-arg="${f}" id="f-${f}"
-          style="${f === 'todos' ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : ''}">
+        <button class="btn-outline${f === 'todos' ? ' is-active' : ''}" data-action="filter" data-arg="${f}" id="f-${f}">
           ${f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
       `).join('')}
@@ -243,9 +242,7 @@ function filterTextos(tipo) {
   ['todos','ensayo','informe','argumentativo','narrativo','expositivo','otro'].forEach(f => {
     const btn = document.getElementById('f-' + f);
     if (!btn) return;
-    btn.style.background  = f === tipo ? 'var(--accent)' : '';
-    btn.style.color       = f === tipo ? '#fff' : '';
-    btn.style.borderColor = f === tipo ? 'var(--accent)' : 'var(--border-color)';
+    btn.classList.toggle('is-active', f === tipo);
   });
   const filtered = tipo === 'todos' ? allTexts : allTexts.filter(t => t.type === tipo);
   document.getElementById('textos-list').innerHTML = filtered.map(cardHtml).join('');
@@ -255,8 +252,8 @@ function renderMisTextos() {
   const mis = allTexts.filter(t => t.author_username === currentUser.username);
   return `
     <div class="page-header"><h1>Mis textos</h1></div>
-    <button class="btn-primary" data-action="navigate" data-arg="nuevo" style="margin-bottom:20px;">＋ Publicar nuevo texto</button>
-    ${mis.length ? mis.map(cardHtml).join('') : '<p style="color:var(--text-muted);">Todavía no publicaste ningún texto.</p>'}
+    <button class="btn-primary u-s11" data-action="navigate" data-arg="nuevo">＋ Publicar nuevo texto</button>
+    ${mis.length ? mis.map(cardHtml).join('') : '<p class="u-s9">Todavía no publicaste ningún texto.</p>'}
   `;
 }
 
@@ -266,19 +263,19 @@ function cardHtml(t) {
   const plainText   = tempDiv.textContent || tempDiv.innerText || "";
   return `
     <div class="card" data-action="open" data-id="${esc(t.id)}">
-      <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+      <div class="u-s12">
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
-        ${t.destacado ? '<span style="font-size:13px;">⭐ Destacado</span>' : ''}
-        <span style="font-size:12px; color:var(--text-muted); margin-left:auto;">${formatDate(t.created_at)}</span>
+        ${t.destacado ? '<span class="u-s13">⭐ Destacado</span>' : ''}
+        <span class="u-s14">${formatDate(t.created_at)}</span>
       </div>
       <h2>${esc(t.title)}</h2>
       <div class="text-excerpt">${esc(plainText)}</div>
-      <div style="border-top:1px solid var(--border-color); padding-top:15px; margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:8px;">
+      <div class="u-s15">
+        <div class="u-s2">
           <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
-          <span style="font-size:14px; font-weight:500;">${esc(t.author_name)}</span>
+          <span class="u-s16">${esc(t.author_name)}</span>
         </div>
-        <span style="font-size:14px; color:var(--text-muted);">❤️ ${t.likes || 0}</span>
+        <span class="u-s17">❤️ ${t.likes || 0}</span>
       </div>
     </div>`;
 }
@@ -287,15 +284,14 @@ function renderNuevo() {
   const tituloPantalla = editingTextId ? "Editar publicación" : "Publicar un texto";
   return `
     <div class="page-header"><h1 id="lbl-header-nuevo">${tituloPantalla}</h1></div>
-    <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
-      <div style="margin-bottom:20px;">
-        <label style="display:block; margin-bottom:8px; font-weight:500;">Título</label>
-        <input id="f-title" type="text" maxlength="200" placeholder="Ej: Análisis del discurso en medios digitales"
-          style="width:100%; padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); font-size:15px; background:var(--bg-body); color:var(--text-main);">
+    <div class="u-s18">
+      <div class="u-s11">
+        <label class="u-s19">Título</label>
+        <input class="u-s20" id="f-title" type="text" maxlength="200" placeholder="Ej: Análisis del discurso en medios digitales">
       </div>
-      <div style="margin-bottom:20px;">
-        <label style="display:block; margin-bottom:8px; font-weight:500;">Tipo de texto</label>
-        <select id="f-type" style="padding:10px 14px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); background:var(--bg-body); color:var(--text-main);">
+      <div class="u-s11">
+        <label class="u-s19">Tipo de texto</label>
+        <select class="u-s21" id="f-type">
           <option value="ensayo">Ensayo</option>
           <option value="informe">Informe</option>
           <option value="argumentativo">Argumentativo</option>
@@ -304,9 +300,9 @@ function renderNuevo() {
           <option value="otro">Otro</option>
         </select>
       </div>
-      <div style="margin-bottom:20px;">
-        <label style="display:block; margin-bottom:8px; font-weight:500;">Contenido</label>
-        <div id="editor-container" style="background:var(--bg-body); min-height:250px;"></div>
+      <div class="u-s11">
+        <label class="u-s19">Contenido</label>
+        <div class="u-s22" id="editor-container"></div>
       </div>
       <button class="btn-primary" id="btn-pub" data-action="submit-text">Publicar en la plataforma</button>
     </div>`;
@@ -384,18 +380,17 @@ async function openText(id) {
   const yaDioLike = !!myLike;
 
   ca.innerHTML = `
-    <button class="btn-outline" data-action="navigate" data-arg="textos" style="margin-bottom:20px;">← Volver</button>
-    <div style="background:var(--bg-card); padding:40px; border-radius:var(--r); border:1px solid var(--border-color); margin-bottom:20px;">
-      <h1 style="font-family:var(--font-serif); font-size:36px; line-height:1.2; margin-bottom:20px;">${esc(t.title)}</h1>
-      <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; margin-bottom:30px;">
+    <button class="btn-outline u-s11" data-action="navigate" data-arg="textos">← Volver</button>
+    <div class="u-s23">
+      <h1 class="u-s24">${esc(t.title)}</h1>
+      <div class="u-s25">
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
-        <span style="color:var(--text-muted);">${formatDate(t.created_at)}</span>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <span class="u-s9">${formatDate(t.created_at)}</span>
+        <div class="u-s2">
           <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
-          <span style="font-weight:500;">${esc(t.author_name)}</span>
+          <span class="u-s3">${esc(t.author_name)}</span>
         </div>
-        <button class="btn-outline" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}"
-          style="${yaDioLike ? 'color:var(--accent);border-color:var(--accent);' : ''}">
+        <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
         ${esDocente(currentUser) ? `
@@ -403,29 +398,28 @@ async function openText(id) {
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
         ${currentUser.username === t.author_username ? `
-          <button class="btn-outline" style="color:#0284c7;border-color:#0284c7;" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>
-          <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>
+          <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>
+          <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>
         ` : ''}
       </div>
-      <div style="font-family:var(--font-serif); font-size:17px; line-height:1.8; color:var(--text-main);">${safeHtml(t.body)}</div>
+      <div class="u-s28">${safeHtml(t.body)}</div>
     </div>
 
-    <div style="background:var(--bg-card); padding:30px; border-radius:var(--r); border:1px solid var(--border-color);">
-      <h3 style="font-family:var(--font-serif); margin-bottom:20px;">Devoluciones (${coms ? coms.length : 0})</h3>
+    <div class="u-s18">
+      <h3 class="u-s29">Devoluciones (${coms ? coms.length : 0})</h3>
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="u-s30">
             <img src="${esc(getAvatar(c.author_username, c.author_name))}" class="avatar avatar-sm">
-            <span style="font-weight:600; font-size:13px;">${esc(c.author_name)}</span>
-            <span style="font-weight:400; color:var(--text-muted); font-size:12px;">${formatDate(c.created_at)}</span>
+            <span class="u-s31">${esc(c.author_name)}</span>
+            <span class="u-s32">${formatDate(c.created_at)}</span>
           </div>
-          <div style="color:var(--text-main); line-height:1.6; white-space:pre-wrap;">${esc(c.body)}</div>
+          <div class="u-s33">${esc(c.body)}</div>
         </div>
-      `).join('') : '<p style="color:var(--text-muted); margin-bottom:20px;">Aún no hay devoluciones. ¡Sé el primero!</p>'}
-      <h4 style="margin-bottom:10px;">Añadir devolución</h4>
-      <textarea id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."
-        style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:6px; font-family:var(--font-sans); font-size:14px; background:var(--bg-body); color:var(--text-main); resize:vertical;"></textarea>
-      <button class="btn-primary" style="margin-top:12px;" data-action="comment" data-id="${esc(t.id)}">Enviar devolución</button>
+      `).join('') : '<p class="u-s34">Aún no hay devoluciones. ¡Sé el primero!</p>'}
+      <h4 class="u-s35">Añadir devolución</h4>
+      <textarea class="u-s36" id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."></textarea>
+      <button class="btn-primary u-s37" data-action="comment" data-id="${esc(t.id)}">Enviar devolución</button>
     </div>
   `;
   ca.scrollTop = 0;
@@ -492,15 +486,15 @@ async function deleteText(id) {
 function renderMiembros() {
   return `
     <div class="page-header"><h1>Compañeros</h1></div>
-    <div style="display:grid; gap:15px;">
+    <div class="u-s38">
       ${allUsers.map(u => `
-        <div style="background:var(--bg-card); padding:15px 20px; border-radius:var(--r); border:1px solid var(--border-color); display:flex; align-items:center; gap:15px;">
+        <div class="u-s39">
           <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
-          <div style="flex:1;">
-            <div style="font-weight:600;">${esc(u.name)}
-              ${esAdmin(u) ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">⭐ Admin</span>' : u.rol === 'profesor' ? '<span style="color:var(--accent); font-size:12px; margin-left:10px;">👨‍🏫 Docente</span>' : ''}
+          <div class="u-s40">
+            <div class="u-s41">${esc(u.name)}
+              ${esAdmin(u) ? '<span class="u-s42">⭐ Admin</span>' : u.rol === 'profesor' ? '<span class="u-s42">👨‍🏫 Docente</span>' : ''}
             </div>
-            <div style="color:var(--text-muted); font-size:13px;">@${esc(u.username)}</div>
+            <div class="u-s43">@${esc(u.username)}</div>
           </div>
           ${esAdmin(currentUser) && u.id !== currentUser.id && !esAdmin(u) ? `
             <button class="btn-outline" data-uid="${esc(u.id)}" data-habilitar="${u.rol === 'profesor' ? '0' : '1'}"
@@ -508,7 +502,7 @@ function renderMiembros() {
               ${u.rol === 'profesor' ? '↩️ Quitar docente' : '👨‍🏫 Habilitar docente'}</button>
           ` : ''}
           ${esDocente(currentUser) && u.id !== currentUser.id ? `
-            <button class="btn-outline" style="color:var(--warn);border-color:var(--warn);"
+            <button class="btn-outline u-s27"
               data-action="eliminar-miembro" data-uid="${esc(u.id)}">🗑️ Eliminar</button>
           ` : ''}
         </div>
