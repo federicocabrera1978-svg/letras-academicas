@@ -104,12 +104,12 @@
   <div class="topbar hidden" id="topbar">
     <div class="topbar-brand">Letras <span>Académicas</span></div>
     <div class="topbar-right">
-      <button id="theme-toggle" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding:6px;">🌓</button>
-      <div style="display:flex; align-items:center; gap:8px;">
+      <button id="theme-toggle" class="btn-outline u-s1">🌓</button>
+      <div class="u-s2">
         <img id="topbar-avatar" class="avatar hidden" src="" alt="Avatar">
-        <span id="topbar-uname" style="font-weight:500;"></span>
+        <span class="u-s3" id="topbar-uname"></span>
       </div>
-      <button id="btn-logout" class="btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.2); padding:6px 12px;" data-action="logout">
+      <button id="btn-logout" class="btn-outline u-s4" data-action="logout">
         🚪 <span>Salir</span>
       </button>
     </div>
@@ -117,12 +117,12 @@
 
   <div class="main hidden" id="main-layout">
     <div class="sidebar">
-      <div style="padding:0 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Menú</div>
+      <div class="u-s5">Menú</div>
       <div class="nav-item active" data-page="dashboard" data-action="navigate" data-arg="dashboard"><span class="nav-icon">🏠</span> <span>◈ Inicio</span></div>
       <div class="nav-item" data-page="textos"     data-action="navigate" data-arg="textos">    <span class="nav-icon">📚</span> <span>◇ Textos</span></div>
       <div class="nav-item" data-page="nuevo"      data-action="navigate" data-arg="nuevo">     <span class="nav-icon">✍️</span> <span>＋ Publicar</span></div>
       <div class="nav-item" data-page="miembros"   data-action="navigate" data-arg="miembros">  <span class="nav-icon">👥</span> <span>◎ Compañeros</span></div>
-      <div style="padding:20px 24px 10px; font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Mi cuenta</div>
+      <div class="u-s6">Mi cuenta</div>
       <div class="nav-item" data-page="mis-textos" data-action="navigate" data-arg="mis-textos"><span class="nav-icon">📁</span> <span>◻ Mis textos</span></div>
     </div>
     <div class="content" id="content-area"></div>
