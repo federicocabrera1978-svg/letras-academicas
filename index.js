@@ -501,7 +501,7 @@ function renderMiembros() {
               data-action="docente">
               ${u.rol === 'profesor' ? '↩️ Quitar docente' : '👨‍🏫 Habilitar docente'}</button>
           ` : ''}
-          ${esDocente(currentUser) && u.id !== currentUser.id ? `
+          ${esAdmin(currentUser) && u.id !== currentUser.id && !esAdmin(u) ? `
             <button class="btn-outline u-s27"
               data-action="eliminar-miembro" data-uid="${esc(u.id)}">🗑️ Eliminar</button>
           ` : ''}
@@ -521,8 +521,11 @@ async function habilitarDocente(id, habilitar) {
 }
 
 async function eliminarMiembro(id, nombre) {
+  // Solo el admin, nunca a sí mismo ni a otro admin (lo valida la RPC en la base)
+  if (!esAdmin(currentUser)) return;
   if (!confirm(`¿Eliminar a ${nombre} de la plataforma?`)) return;
-  await db.from('perfiles').delete().eq('id', id);
+  const { error } = await db.rpc('eliminar_miembro', { p_user: id });
+  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
   await refreshData();
   navigate('miembros');
 }
