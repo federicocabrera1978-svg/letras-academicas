@@ -24,6 +24,9 @@ let misCursosDocente = new Set(); // cursos donde soy docente (para moderar)
 const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
 const esAdmin   = u => u && u.rol === 'admin';
 // Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
+// Autoría por id de cuenta (author_id); el username es solo un dato visible.
+// (Fallback a username solo mientras la base no tenga la migración f02.)
+const esMio = t => !!currentUser && (t.author_id ? t.author_id === currentUser.id : t.author_username === currentUser.username);
 const puedeModerar = t => esAdmin(currentUser) || (!!t.curso_id && misCursosDocente.has(t.curso_id));
 
 // Utilidades DOM
@@ -259,7 +262,7 @@ function filterTextos(tipo) {
 }
 
 function renderMisTextos() {
-  const mis = allTexts.filter(t => t.author_username === currentUser.username);
+  const mis = allTexts.filter(esMio);
   return `
     <div class="page-header"><h1>Mis textos</h1></div>
     <button class="btn-primary u-s11" data-action="navigate" data-arg="nuevo">＋ Publicar nuevo texto</button>
@@ -407,9 +410,9 @@ async function openText(id) {
           <button class="btn-outline" data-action="destacar" data-id="${esc(t.id)}" data-on="${t.destacado ? '1' : '0'}">
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
-        ${currentUser.username === t.author_username ? `
+        ${esMio(t) ? `
           <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>` : ''}
-        ${currentUser.username === t.author_username || puedeModerar(t) ? `
+        ${esMio(t) || puedeModerar(t) ? `
           <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>` : ''}
       </div>
       <div class="u-s28">${safeHtml(t.body)}</div>
@@ -460,7 +463,7 @@ async function submitComment(textoId) {
 async function toggleLike(id, yaDioLike) {
   // No se puede likear el propio texto
   const t = allTexts.find(x => x.id === id);
-  if (t && t.author_username === currentUser.username) {
+  if (t && esMio(t)) {
     alert('No podés darle like a tu propio texto.');
     return;
   }
