@@ -234,7 +234,46 @@ function getAvatar(userId, username, fallbackName) {
 // ═══════════════════════════════════════════════════════════════
 // 4. NAVEGACIÓN (ENRUTADOR)
 // ═══════════════════════════════════════════════════════════════
+// ── Borradores locales: un solo intervalo, clave por usuario + modo, se limpian al salir ──
+let draftTimer = null;
+function claveBorrador() {
+  if (!currentUser) return null;
+  return `borrador:${currentUser.id}:${editingTextId ? 'editar:' + editingTextId : 'nuevo'}`;
+}
+function detenerBorrador() {
+  if (draftTimer) { clearInterval(draftTimer); draftTimer = null; }
+}
+function guardarBorrador() {
+  const k = claveBorrador();
+  const titleInput = document.getElementById('f-title');
+  const typeInput  = document.getElementById('f-type');
+  if (!k || !titleInput || !typeInput || !quillEditor) return;
+  const body = htmlDelEditor();
+  if (!titleInput.value.trim() && !body) { localStorage.removeItem(k); return; }
+  try {
+    localStorage.setItem(k, JSON.stringify({ title: titleInput.value, type: typeInput.value, body, ts: Date.now() }));
+  } catch (e) { console.warn('No se pudo guardar el borrador', e); }
+}
+function restaurarBorrador(original) {
+  const k = claveBorrador();
+  const raw = k && localStorage.getItem(k);
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch { localStorage.removeItem(k); return; }
+  if (original && data.title === original.title && data.type === original.type && data.body === original.body) return;
+  if (original && !confirm('Tenés cambios sin guardar de este texto. ¿Recuperarlos?')) { localStorage.removeItem(k); return; }
+  document.getElementById('f-title').value = data.title || '';
+  document.getElementById('f-type').value  = data.type  || 'ensayo';
+  cargarEnEditor(data.body);
+}
+function borrarBorradores(uid) {
+  Object.keys(localStorage).forEach(k => {
+    if (k === 'borrador' || (uid && k.startsWith(`borrador:${uid}:`))) localStorage.removeItem(k);
+  });
+}
+
 function navigate(page) {
+  detenerBorrador();
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -265,34 +304,9 @@ function navigate(page) {
       }
     });
 
-    // Restaurar borrador si existe
-    const borrador = localStorage.getItem('borrador');
-
-    if (borrador && !editingTextId) {
-      const titleInput = document.getElementById('f-title');
-      const typeInput  = document.getElementById('f-type');
-
-      if (titleInput && typeInput && quillEditor) {
-        const data = JSON.parse(borrador);
-        titleInput.value = data.title || '';
-        typeInput.value  = data.type  || 'ensayo';
-        cargarEnEditor(data.body);
-      }
-    }
-
-    // Guardar automáticamente cada 10 segundos
-    setInterval(() => {
-      const titleInput = document.getElementById('f-title');
-      const typeInput  = document.getElementById('f-type');
-
-      if (!titleInput || !typeInput || !quillEditor) return;
-
-      localStorage.setItem('borrador', JSON.stringify({
-        title: titleInput.value,
-        type:  typeInput.value,
-        body:  htmlDelEditor()
-      }));
-    }, 10000);
+    if (!editingTextId) restaurarBorrador(null);
+    // Guardado automático cada 10 s (un único intervalo; se detiene al salir de la vista)
+    draftTimer = setInterval(guardarBorrador, 10000);
 
     if (!editingTextId) {
       document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
@@ -424,6 +438,7 @@ function editText(id) {
   cargarEnEditor(t.body);
   document.getElementById('btn-pub').textContent          = "Guardar cambios";
   document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
+  restaurarBorrador({ title: t.title, type: t.type, body: htmlDelEditor() });
 }
 
 async function submitText() {
@@ -458,8 +473,11 @@ async function submitText() {
       }]);
       if (insErr) throw insErr;
     }
+    detenerBorrador();
+    if (claveBorrador()) localStorage.removeItem(claveBorrador());
+    localStorage.removeItem('borrador');   // clave vieja (compartida entre usuarios)
+    editingTextId = null;
     await refreshData();
-    localStorage.removeItem('borrador');
     navigate('mis-textos');
   } catch (err) {
     console.error('Error al guardar:', err);
