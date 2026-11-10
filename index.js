@@ -142,10 +142,13 @@ async function obtenerOCrearPerfil(session) {
   if (error) throw error;
 
   // El username y el rol los decide la base (único, derivado del email); acá solo se sugiere.
-  for (let intento = 0; !perfil && intento < 3; intento++) {
+  // Si choca (23505) se reintenta con sufijo, por si la base todavía no tiene la migración f02.
+  const base = (email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario').slice(0, 30);
+  for (let intento = 0; !perfil && intento < 4; intento++) {
+    const sufijo = intento === 0 ? '' : String(Math.floor(1000 + Math.random() * 9000));
     const { error: insErr } = await db.from('perfiles').insert([{
       id:         uid,
-      username:   email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario',
+      username:   base + sufijo,
       name:       name.slice(0, 120),
       color:      '#2d5a8e',
       avatar_url: avatarUrl
