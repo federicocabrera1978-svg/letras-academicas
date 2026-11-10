@@ -21,6 +21,8 @@ let appInitialized = false;
 let cursoGeneralId = null;   // Fase 1: todo texto nuevo va al curso General
 let misCursosDocente = new Set(); // cursos donde soy docente (para moderar)
 
+// Columnas de perfiles que la base deja leer (hallazgo 4: nada de select *)
+const PERFIL_COLS = 'id, name, username, avatar_url, rol';
 const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
 const esAdmin   = u => u && u.rol === 'admin';
 // Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
@@ -83,7 +85,7 @@ db.auth.onAuthStateChange(async (event, session) => {
   const avatarUrl    = session.user.user_metadata.avatar_url
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
-  let { data: userProfile } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+  let { data: userProfile } = await db.from('perfiles').select(PERFIL_COLS).eq('id', session.user.id).maybeSingle();
 
   if (!userProfile) {
     const newProfile = {
@@ -95,7 +97,7 @@ db.auth.onAuthStateChange(async (event, session) => {
     };
     await db.from('perfiles').insert([newProfile]);
     // el rol lo asigna la base (siempre 'alumno'); releemos el perfil real
-    const { data: creado } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+    const { data: creado } = await db.from('perfiles').select(PERFIL_COLS).eq('id', session.user.id).maybeSingle();
     userProfile = creado || { ...newProfile, rol: 'alumno' };
   } else if (userProfile.avatar_url !== avatarUrl) {
     await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
@@ -131,14 +133,14 @@ async function cargarMisCursos() {
 }
 
 async function refreshData() {
-  const { data: uData } = await db.from('perfiles').select('*');
+  const { data: uData } = await db.from('perfiles').select(PERFIL_COLS).order('name');
   allUsers = uData || [];
   const { data: tData } = await db.from('textos').select('*').order('created_at', { ascending: false });
   allTexts = tData || [];
 }
 
-function getAvatar(username, fallbackName) {
-  const user = allUsers.find(u => u.username === username);
+function getAvatar(userId, username, fallbackName) {
+  const user = allUsers.find(u => (userId && u.id === userId) || u.username === username);
   return user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=random`;
 }
 
@@ -285,7 +287,7 @@ function cardHtml(t) {
       <div class="text-excerpt">${esc(plainText)}</div>
       <div class="u-s15">
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          <img src="${esc(getAvatar(t.author_id, t.author_username, t.author_name))}" class="avatar avatar-sm">
           <span class="u-s16">${esc(t.author_name)}</span>
         </div>
         <span class="u-s17">❤️ ${t.likes || 0}</span>
@@ -400,7 +402,7 @@ async function openText(id) {
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         <span class="u-s9">${formatDate(t.created_at)}</span>
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          <img src="${esc(getAvatar(t.author_id, t.author_username, t.author_name))}" class="avatar avatar-sm">
           <span class="u-s3">${esc(t.author_name)}</span>
         </div>
         <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
@@ -423,7 +425,7 @@ async function openText(id) {
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
           <div class="u-s30">
-            <img src="${esc(getAvatar(c.author_username, c.author_name))}" class="avatar avatar-sm">
+            <img src="${esc(getAvatar(c.author_id, c.author_username, c.author_name))}" class="avatar avatar-sm">
             <span class="u-s31">${esc(c.author_name)}</span>
             <span class="u-s32">${formatDate(c.created_at)}</span>
           </div>
