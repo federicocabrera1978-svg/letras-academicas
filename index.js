@@ -19,9 +19,12 @@ let quillEditor   = null;
 let editingTextId = null;
 let appInitialized = false;
 let cursoGeneralId = null;   // Fase 1: todo texto nuevo va al curso General
+let misCursosDocente = new Set(); // cursos donde soy docente (para moderar)
 
 const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
 const esAdmin   = u => u && u.rol === 'admin';
+// Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
+const puedeModerar = t => esAdmin(currentUser) || (!!t.curso_id && misCursosDocente.has(t.curso_id));
 
 // Utilidades DOM
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -103,6 +106,7 @@ db.auth.onAuthStateChange(async (event, session) => {
     const { data: cid, error } = await db.rpc('unirse_a_curso', { codigo: 'GENERAL' });
     if (!error) cursoGeneralId = cid;
   } catch (e) { console.warn('No se pudo unir al curso General', e); }
+  await cargarMisCursos();
   document.getElementById('topbar-uname').textContent = currentUser.name;
   document.getElementById('topbar-avatar').src = currentUser.avatar_url;
   showEl('topbar-avatar');
@@ -117,6 +121,12 @@ db.auth.onAuthStateChange(async (event, session) => {
 // ═══════════════════════════════════════════════════════════════
 // 3. CARGA DE DATOS
 // ═══════════════════════════════════════════════════════════════
+async function cargarMisCursos() {
+  const { data, error } = await db.from('miembros_curso').select('curso_id, rol').eq('user_id', currentUser.id);
+  if (error) { console.warn('No se pudieron leer tus cursos', error); misCursosDocente = new Set(); return; }
+  misCursosDocente = new Set((data || []).filter(m => m.rol === 'docente').map(m => m.curso_id));
+}
+
 async function refreshData() {
   const { data: uData } = await db.from('perfiles').select('*');
   allUsers = uData || [];
@@ -393,14 +403,14 @@ async function openText(id) {
         <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
-        ${esDocente(currentUser) ? `
+        ${puedeModerar(t) ? `
           <button class="btn-outline" data-action="destacar" data-id="${esc(t.id)}" data-on="${t.destacado ? '1' : '0'}">
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
         ${currentUser.username === t.author_username ? `
-          <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>
-          <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>
-        ` : ''}
+          <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>` : ''}
+        ${currentUser.username === t.author_username || puedeModerar(t) ? `
+          <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>` : ''}
       </div>
       <div class="u-s28">${safeHtml(t.body)}</div>
     </div>
