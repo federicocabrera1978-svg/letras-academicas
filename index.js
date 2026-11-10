@@ -457,8 +457,10 @@ async function submitText() {
 
   try {
     if (editingTextId) {
-      await db.from('textos').update({ title, type, body: bodyHTML }).eq('id', editingTextId);
-      editingTextId = null;
+      const { data: upd, error: updErr } = await db.from('textos')
+        .update({ title, type, body: bodyHTML }).eq('id', editingTextId).select('id');
+      if (updErr) throw updErr;
+      if (!upd || !upd.length) throw new Error('No tenés permiso para editar este texto (o ya no existe).');
     } else {
       const { error: insErr } = await db.from('textos').insert([{
         title,
@@ -547,8 +549,8 @@ async function openText(id) {
 
 async function submitComment(textoId) {
   const body = document.getElementById('com-body').value.trim();
-  if (!body || body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   if (!body) { alert('Escribí algo antes de enviar.'); return; }
+  if (body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   
   const btn = document.querySelector('[data-action="comment"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
@@ -559,7 +561,7 @@ async function submitComment(textoId) {
     author_name:     currentUser.name,
     body:            body
   }]);
-  if (comErr) { alert('No se pudo enviar: ' + comErr.message); if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; } return; }
+  if (comErr) { alert('No se pudo enviar: ' + comErr.message); if (btn) { btn.disabled = false; btn.textContent = 'Enviar devolución'; } return; }
   openText(textoId);
 }
 
@@ -585,16 +587,22 @@ async function toggleLike(id, yaDioLike) {
 }
 
 async function toggleDestacado(id, estadoActual) {
-  await db.from('textos').update({ destacado: !estadoActual }).eq('id', id);
+  const { data, error } = await db.from('textos').update({ destacado: !estadoActual }).eq('id', id).select('id, destacado');
+  if (error) { alert('No se pudo cambiar el destacado: ' + error.message); return; }
+  if (!data || !data.length || data[0].destacado === estadoActual) {
+    alert('No tenés permiso para destacar este texto.');
+    return;
+  }
   await refreshData();
   openText(id);
 }
 
 async function deleteText(id) {
   if (!confirm('¿Estás seguro de eliminar este texto permanentemente?')) return;
-  await db.from('likes').delete().eq('texto_id', id);
-  await db.from('comentarios').delete().eq('texto_id', id);
-  await db.from('textos').delete().eq('id', id);
+  // Un solo DELETE: comentarios y likes se borran en cascada (FK ON DELETE CASCADE)
+  const { data, error } = await db.from('textos').delete().eq('id', id).select('id');
+  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+  if (!data || !data.length) { alert('No tenés permiso para eliminar este texto (o ya no existe).'); return; }
   await refreshData();
   navigate('mis-textos');
 }
