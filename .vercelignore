@@ -5,3 +5,5 @@ README.md
 *.patch
 .env*
 backup*
+supabase
+docs
