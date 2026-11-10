@@ -8,6 +8,8 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // PKCE: el login vuelve con ?code= (de un solo uso, 5 min) en vez de tokens en el #fragmento
+    flowType: 'pkce',
     storageKey: 'letras-academicas-auth'
   }
 });
@@ -25,10 +27,10 @@ let misCursosDocente = new Set(); // cursos donde soy docente (para moderar)
 const PERFIL_COLS = 'id, name, username, avatar_url, rol';
 const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
 const esAdmin   = u => u && u.rol === 'admin';
-// Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
 // Autoría por id de cuenta (author_id); el username es solo un dato visible.
 // (Fallback a username solo mientras la base no tenga la migración f02.)
 const esMio = t => !!currentUser && (t.author_id ? t.author_id === currentUser.id : t.author_username === currentUser.username);
+// Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
 const puedeModerar = t => esAdmin(currentUser) || (!!t.curso_id && misCursosDocente.has(t.curso_id));
 
 // Utilidades DOM
@@ -57,71 +59,156 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 // 2. AUTENTICACIÓN
 // ═══════════════════════════════════════════════════════════════
 document.getElementById('login-google-btn').addEventListener('click', async () => {
-  await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  if (error) alert('No se pudo iniciar sesión: ' + error.message);
 });
 
+function limpiarSesionLocal(uid) {
+  if (typeof borrarBorradores === 'function') borrarBorradores(uid);
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.startsWith('letras-academicas-auth')) localStorage.removeItem(key);
+  });
+}
+
 async function doLogout() {
+  const uid = currentUser?.id;
   try {
-    await db.auth.signOut();
-    // Limpiar manualmente la sesión de Supabase del localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-')) localStorage.removeItem(key);
-    });
-  } catch(err) {
+    const { error } = await db.auth.signOut();
+    if (error) console.error('Error al cerrar sesión:', error);
+  } catch (err) {
     console.error('Error al cerrar sesión:', err);
   } finally {
+    limpiarSesionLocal(uid);
     location.href = window.location.origin;
   }
 }
 
-db.auth.onAuthStateChange(async (event, session) => {
-  if (!session) return;
-  if (appInitialized) return;
-  appInitialized = true;
-    
-  const email        = session.user.email;
-  const name         = session.user.user_metadata.full_name || email.split('@')[0];
-  const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-  const avatarUrl    = session.user.user_metadata.avatar_url
+// Quitar ?code= / errores de OAuth de la barra de direcciones después del login
+function limpiarUrlDeAuth() {
+  const u = new URL(window.location.href);
+  const err = u.searchParams.get('error_description');
+  if (err) alert('No se pudo iniciar sesión: ' + err);
+  if (['code', 'error', 'error_code', 'error_description', 'state'].some(k => u.searchParams.has(k))) {
+    history.replaceState(null, '', u.pathname + u.hash);
+  }
+}
+
+let authGen = 0;          // invalida inicializaciones en curso si cambia la sesión
+let iniciandoUid = null;
+
+// Supabase recomienda no hacer await dentro del callback (puede trabar el cliente):
+// se difiere el trabajo con setTimeout(0).
+db.auth.onAuthStateChange((event, session) => {
+  setTimeout(() => { manejarAuth(event, session); }, 0);
+});
+
+async function manejarAuth(event, session) {
+  const uid = session?.user?.id || null;
+  if (!uid) {                       // SIGNED_OUT (también desde otra pestaña) o sin sesión
+    authGen++;
+    iniciandoUid = null;
+    if (currentUser || appInitialized) cerrarApp();
+    else mostrarLanding();
+    return;
+  }
+  if (currentUser && currentUser.id === uid) return;   // TOKEN_REFRESHED, USER_UPDATED…
+  if (iniciandoUid === uid) return;                    // ya se está cargando esta cuenta
+  if (currentUser && currentUser.id !== uid) cerrarApp();  // cambió la cuenta (otra pestaña)
+  const gen = ++authGen;
+  iniciandoUid = uid;
+  try {
+    await iniciarApp(session, gen);
+  } catch (e) {
+    if (gen !== authGen) return;
+    console.error('Error al cargar la cuenta:', e);
+    alert('No se pudo cargar tu cuenta: ' + (e?.message || 'intentá de nuevo.'));
+    await db.auth.signOut();
+  } finally {
+    if (iniciandoUid === uid) iniciandoUid = null;
+  }
+}
+
+async function obtenerOCrearPerfil(session) {
+  const uid          = session.user.id;
+  const email        = session.user.email || '';
+  const name         = session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
+  const avatarUrl    = session.user.user_metadata?.avatar_url
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+  const leer = () => db.from('perfiles').select(PERFIL_COLS).eq('id', uid).maybeSingle();
 
-  let { data: userProfile } = await db.from('perfiles').select(PERFIL_COLS).eq('id', session.user.id).maybeSingle();
+  let { data: perfil, error } = await leer();
+  if (error) throw error;
 
-  if (!userProfile) {
-    const newProfile = {
-      id:         session.user.id,
-      username:   baseUsername,
-      name:       name,
+  // El username y el rol los decide la base (único, derivado del email); acá solo se sugiere.
+  for (let intento = 0; !perfil && intento < 3; intento++) {
+    const { error: insErr } = await db.from('perfiles').insert([{
+      id:         uid,
+      username:   email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario',
+      name:       name.slice(0, 120),
       color:      '#2d5a8e',
       avatar_url: avatarUrl
-    };
-    await db.from('perfiles').insert([newProfile]);
-    // el rol lo asigna la base (siempre 'alumno'); releemos el perfil real
-    const { data: creado } = await db.from('perfiles').select(PERFIL_COLS).eq('id', session.user.id).maybeSingle();
-    userProfile = creado || { ...newProfile, rol: 'alumno' };
-  } else if (userProfile.avatar_url !== avatarUrl) {
-    await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
-    userProfile.avatar_url = avatarUrl;
+    }]);
+    // 23505 = ya existe (otra pestaña lo creó) o choque de username: releer / reintentar
+    if (insErr && insErr.code !== '23505') throw insErr;
+    ({ data: perfil, error } = await leer());
+    if (error) throw error;
   }
+  if (!perfil) throw new Error('No se pudo crear tu perfil.');
 
-  currentUser = userProfile;
+  if (perfil.avatar_url !== avatarUrl) {
+    const { error: updErr } = await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', uid);
+    if (updErr) console.warn('No se pudo actualizar el avatar', updErr);
+    else perfil.avatar_url = avatarUrl;
+  }
+  return perfil;
+}
+
+async function iniciarApp(session, gen) {
+  limpiarUrlDeAuth();
+  const perfil = await obtenerOCrearPerfil(session);
+  if (gen !== authGen) return;
+  currentUser = perfil;
 
   // Fase 1: asegurar membresía en el curso General (idempotente)
   try {
     const { data: cid, error } = await db.rpc('unirse_a_curso', { codigo: 'GENERAL' });
-    if (!error) cursoGeneralId = cid;
+    if (error) console.warn('No se pudo unir al curso General', error);
+    else cursoGeneralId = cid;
   } catch (e) { console.warn('No se pudo unir al curso General', e); }
   await cargarMisCursos();
+  await refreshData();
+  if (gen !== authGen) return;
+
+  appInitialized = true;
   document.getElementById('topbar-uname').textContent = currentUser.name;
   document.getElementById('topbar-avatar').src = currentUser.avatar_url;
   showEl('topbar-avatar');
-
   hideEl('landing-screen');
   showEl('topbar');
   showEl('main-layout');
-  await refreshData();
   navigate('dashboard');
-});
+}
+
+function mostrarLanding() {
+  hideEl('topbar');
+  hideEl('main-layout');
+  showEl('landing-screen');
+  loadLandingDestacados();
+}
+
+// Sesión cerrada (acá o en otra pestaña) o cambio de cuenta: no dejar datos del usuario anterior
+function cerrarApp() {
+  const uid = currentUser?.id;
+  if (typeof detenerBorrador === 'function') detenerBorrador();
+  if (uid && typeof borrarBorradores === 'function') borrarBorradores(uid);
+  currentUser = null; allTexts = []; allUsers = []; quillEditor = null; editingTextId = null;
+  appInitialized = false; cursoGeneralId = null; misCursosDocente = new Set();
+  document.getElementById('content-area').innerHTML = '';
+  document.getElementById('topbar-uname').textContent = '';
+  document.getElementById('topbar-avatar').removeAttribute('src');
+  hideEl('topbar-avatar');
+  mostrarLanding();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 3. CARGA DE DATOS
@@ -581,13 +668,8 @@ async function loadLandingDestacados() {
   }).join('');
 }
 
-// Al cargar la página, verificar si ya hay sesión activa
-db.auth.getSession().then(({ data: { session } }) => {
-  if (!session) {
-    loadLandingDestacados();
-  }
-  // Si hay sesión, onAuthStateChange muestra la app automáticamente
-});
+// La carga inicial la resuelve onAuthStateChange (evento INITIAL_SESSION):
+// sin sesión muestra la landing con destacados; con sesión abre la app.
 
 // Delegación de eventos (CSP sin 'unsafe-inline')
 const ACCIONES = {
