@@ -550,10 +550,13 @@ async function eliminarMiembro(id, nombre) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadLandingDestacados() {
-  const { data } = await db.from('textos')
-    .select('*')
+  // anon solo puede leer estas columnas (hallazgo 12)
+  const { data, error } = await db.from('textos')
+    .select('id, title, type, body, author_name, created_at')
     .eq('destacado', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(9);
+  if (error) console.warn('No se pudieron cargar los destacados', error);
 
   const contenedor = document.getElementById('landing-textos');
   if (!data || data.length === 0) {
