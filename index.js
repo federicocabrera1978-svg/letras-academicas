@@ -51,8 +51,10 @@ function formatDate(d){
 
 // Tema oscuro
 document.getElementById('theme-toggle').addEventListener('click', () => {
-  document.body.classList.toggle('dark');
-  document.getElementById('theme-toggle').textContent = document.body.classList.contains('dark') ? '☀️' : '🌓';
+  const oscuro = document.body.classList.toggle('dark');
+  const b = document.getElementById('theme-toggle');
+  b.textContent = oscuro ? '☀️' : '🌓';
+  b.setAttribute('aria-pressed', String(oscuro));
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -219,11 +221,54 @@ async function cargarMisCursos() {
   misCursosDocente = new Set((data || []).filter(m => m.rol === 'docente').map(m => m.curso_id));
 }
 
+// Paginado: se traen PAGE textos por vez (botón "Cargar más" en la Biblioteca)
+const PAGE = 50;
+let hayMasTextos = false;
+let misTexts = [];
+let filtroActual = 'todos';
+
+async function cargarMisTextos() {
+  const q = col => db.from('textos').select('*').eq(col, col === 'author_id' ? currentUser.id : currentUser.username)
+    .order('created_at', { ascending: false }).limit(200);
+  let r = await q('author_id');
+  if (r.error && r.error.code === '42703') r = await q('author_username');   // base sin migración f02
+  if (r.error) { console.warn('No se pudieron cargar tus textos', r.error); return []; }
+  return r.data || [];
+}
+
 async function refreshData() {
-  const { data: uData } = await db.from('perfiles').select(PERFIL_COLS).order('name');
-  allUsers = uData || [];
-  const { data: tData } = await db.from('textos').select('*').order('created_at', { ascending: false });
-  allTexts = tData || [];
+  const [u, t, mis] = await Promise.all([
+    db.from('perfiles').select(PERFIL_COLS).order('name').limit(500),
+    db.from('textos').select('*').order('created_at', { ascending: false }).range(0, PAGE - 1),
+    cargarMisTextos()
+  ]);
+  if (u.error) console.warn('No se pudieron cargar los perfiles', u.error);
+  if (t.error) console.warn('No se pudieron cargar los textos', t.error);
+  allUsers = u.data || [];
+  allTexts = t.data || [];
+  hayMasTextos = allTexts.length === PAGE;
+  misTexts = mis;
+}
+
+async function cargarMasTextos() {
+  const btn = document.getElementById('btn-mas');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando…'; }
+  const { data, error } = await db.from('textos').select('*').order('created_at', { ascending: false })
+    .range(allTexts.length, allTexts.length + PAGE - 1);
+  if (error) { alert('No se pudieron cargar más textos: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Cargar más'; } return; }
+  const ids = new Set(allTexts.map(x => x.id));
+  allTexts = allTexts.concat((data || []).filter(x => !ids.has(x.id)));
+  hayMasTextos = (data || []).length === PAGE;
+  filterTextos(filtroActual);
+}
+
+function buscarTexto(id) {
+  return allTexts.find(x => x.id === id) || misTexts.find(x => x.id === id) || null;
+}
+
+function avatarImg(url, cls) {
+  // alt vacío: el nombre ya aparece al lado (imagen decorativa)
+  return `<img src="${esc(url)}" class="${cls}" alt="">`;
 }
 
 function getAvatar(userId, username, fallbackName) {
@@ -275,7 +320,9 @@ function borrarBorradores(uid) {
 function navigate(page) {
   detenerBorrador();
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.page === page);
+    const activo = el.dataset.page === page;
+    el.classList.toggle('active', activo);
+    if (activo) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
 
   const ca = document.getElementById('content-area');
@@ -303,6 +350,9 @@ function navigate(page) {
         ]
       }
     });
+    quillEditor.root.setAttribute('aria-labelledby', 'lbl-contenido');
+    quillEditor.root.setAttribute('role', 'textbox');
+    quillEditor.root.setAttribute('aria-multiline', 'true');
 
     if (!editingTextId) restaurarBorrador(null);
     // Guardado automático cada 10 s (un único intervalo; se detiene al salir de la vista)
@@ -340,17 +390,23 @@ function renderDashboard() {
   `;
 }
 
+function botonMas() {
+  return hayMasTextos ? '<button class="btn-outline" id="btn-mas" type="button" data-action="mas-textos">Cargar más</button>' : '';
+}
+
 function renderTextos() {
+  filtroActual = 'todos';
   return `
     <div class="page-header"><h1>Biblioteca Virtual</h1></div>
     <div class="u-s10">
       ${['todos','ensayo','informe','argumentativo','narrativo','expositivo','otro'].map(f => `
-        <button class="btn-outline${f === 'todos' ? ' is-active' : ''}" data-action="filter" data-arg="${f}" id="f-${f}">
+        <button class="btn-outline${f === 'todos' ? ' is-active' : ''}" data-action="filter" data-arg="${f}" id="f-${f}" type="button" aria-pressed="${f === 'todos'}">
           ${f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
       `).join('')}
     </div>
     <div id="textos-list">${allTexts.map(cardHtml).join('')}</div>
+    <div id="textos-mas">${botonMas()}</div>
   `;
 }
 
@@ -359,13 +415,19 @@ function filterTextos(tipo) {
     const btn = document.getElementById('f-' + f);
     if (!btn) return;
     btn.classList.toggle('is-active', f === tipo);
+    btn.setAttribute('aria-pressed', String(f === tipo));
   });
+  filtroActual = tipo;
   const filtered = tipo === 'todos' ? allTexts : allTexts.filter(t => t.type === tipo);
-  document.getElementById('textos-list').innerHTML = filtered.map(cardHtml).join('');
+  const lista = document.getElementById('textos-list');
+  if (!lista) return;
+  lista.innerHTML = filtered.map(cardHtml).join('') || '<p class="u-s9">No hay textos de este tipo entre los cargados.</p>';
+  const mas = document.getElementById('textos-mas');
+  if (mas) mas.innerHTML = botonMas();
 }
 
 function renderMisTextos() {
-  const mis = allTexts.filter(esMio);
+  const mis = misTexts.filter(esMio);
   return `
     <div class="page-header"><h1>Mis textos</h1></div>
     <button class="btn-primary u-s11" data-action="navigate" data-arg="nuevo">＋ Publicar nuevo texto</button>
@@ -378,7 +440,7 @@ function cardHtml(t) {
   tempDiv.innerHTML = safeHtml(t.body);
   const plainText   = tempDiv.textContent || tempDiv.innerText || "";
   return `
-    <div class="card" data-action="open" data-id="${esc(t.id)}">
+    <div class="card" data-action="open" data-id="${esc(t.id)}" role="link" tabindex="0">
       <div class="u-s12">
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         ${t.destacado ? '<span class="u-s13">⭐ Destacado</span>' : ''}
@@ -388,7 +450,7 @@ function cardHtml(t) {
       <div class="text-excerpt">${esc(plainText)}</div>
       <div class="u-s15">
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_id, t.author_username, t.author_name))}" class="avatar avatar-sm">
+          ${avatarImg(getAvatar(t.author_id, t.author_username, t.author_name), "avatar avatar-sm")}
           <span class="u-s16">${esc(t.author_name)}</span>
         </div>
         <span class="u-s17">❤️ ${t.likes || 0}</span>
@@ -402,11 +464,11 @@ function renderNuevo() {
     <div class="page-header"><h1 id="lbl-header-nuevo">${tituloPantalla}</h1></div>
     <div class="u-s18">
       <div class="u-s11">
-        <label class="u-s19">Título</label>
+        <label class="u-s19" for="f-title">Título</label>
         <input class="u-s20" id="f-title" type="text" maxlength="200" placeholder="Ej: Análisis del discurso en medios digitales">
       </div>
       <div class="u-s11">
-        <label class="u-s19">Tipo de texto</label>
+        <label class="u-s19" for="f-type">Tipo de texto</label>
         <select class="u-s21" id="f-type">
           <option value="ensayo">Ensayo</option>
           <option value="informe">Informe</option>
@@ -417,7 +479,7 @@ function renderNuevo() {
         </select>
       </div>
       <div class="u-s11">
-        <label class="u-s19">Contenido</label>
+        <span class="u-s19" id="lbl-contenido">Contenido</span>
         <div class="u-s22" id="editor-container"></div>
       </div>
       <button class="btn-primary" id="btn-pub" data-action="submit-text">Publicar en la plataforma</button>
@@ -429,7 +491,7 @@ function renderNuevo() {
 // ═══════════════════════════════════════════════════════════════
 
 function editText(id) {
-  const t = allTexts.find(x => x.id === id);
+  const t = buscarTexto(id);
   if (!t) return;
   editingTextId = id;
   navigate('nuevo');
@@ -493,12 +555,19 @@ async function submitText() {
 // ═══════════════════════════════════════════════════════════════
 
 async function openText(id) {
-  const t = allTexts.find(x => x.id === id);
-  if (!t) return;
+  let t = buscarTexto(id);
+  if (!t) {
+    const { data, error } = await db.from('textos').select('*').eq('id', id).maybeSingle();
+    if (error || !data) { alert('No se encontró el texto (o no tenés acceso).'); return; }
+    t = data;
+  }
   const ca = document.getElementById('content-area');
 
-  const { data: coms }   = await db.from('comentarios').select('*').eq('texto_id', id).order('created_at', { ascending: true });
-  const { data: myLike } = await db.from('likes').select('*').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle();
+  const [{ data: coms, error: comsErr }, { data: myLike }] = await Promise.all([
+    db.from('comentarios').select('*').eq('texto_id', id).order('created_at', { ascending: true }).limit(300),
+    db.from('likes').select('id').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle()
+  ]);
+  if (comsErr) console.warn('No se pudieron cargar las devoluciones', comsErr);
   const yaDioLike = !!myLike;
 
   ca.innerHTML = `
@@ -509,10 +578,10 @@ async function openText(id) {
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         <span class="u-s9">${formatDate(t.created_at)}</span>
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_id, t.author_username, t.author_name))}" class="avatar avatar-sm">
+          ${avatarImg(getAvatar(t.author_id, t.author_username, t.author_name), "avatar avatar-sm")}
           <span class="u-s3">${esc(t.author_name)}</span>
         </div>
-        <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
+        <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" type="button" aria-pressed="${yaDioLike}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
         ${puedeModerar(t) ? `
@@ -532,7 +601,7 @@ async function openText(id) {
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
           <div class="u-s30">
-            <img src="${esc(getAvatar(c.author_id, c.author_username, c.author_name))}" class="avatar avatar-sm">
+            ${avatarImg(getAvatar(c.author_id, c.author_username, c.author_name), "avatar avatar-sm")}
             <span class="u-s31">${esc(c.author_name)}</span>
             <span class="u-s32">${formatDate(c.created_at)}</span>
           </div>
@@ -540,6 +609,7 @@ async function openText(id) {
         </div>
       `).join('') : '<p class="u-s34">Aún no hay devoluciones. ¡Sé el primero!</p>'}
       <h4 class="u-s35">Añadir devolución</h4>
+      <label class="sr-only" for="com-body">Tu devolución</label>
       <textarea class="u-s36" id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."></textarea>
       <button class="btn-primary u-s37" data-action="comment" data-id="${esc(t.id)}">Enviar devolución</button>
     </div>
@@ -570,18 +640,18 @@ async function submitComment(textoId) {
 // ═══════════════════════════════════════════════════════════════
 
 async function toggleLike(id, yaDioLike) {
-  // No se puede likear el propio texto
-  const t = allTexts.find(x => x.id === id);
-  if (t && esMio(t)) {
-    alert('No podés darle like a tu propio texto.');
-    return;
-  }
-  // Si ya dio like, mostrar mensaje
+  const t = buscarTexto(id);
+  if (t && esMio(t)) { alert('No podés darle like a tu propio texto.'); return; }
   if (yaDioLike) {
-    alert('Ya le diste like a este texto.');
-    return;
+    // "Ya no me gusta": borra solo el like propio (la base lo restringe a mi cuenta)
+    const { data, error } = await db.from('likes').delete()
+      .eq('texto_id', id).eq('user_username', currentUser.username).select('id');
+    if (error) { alert('No se pudo quitar el me gusta: ' + error.message); return; }
+    if (!data || !data.length) console.warn('No había un me gusta propio para quitar');
+  } else {
+    const { error } = await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
+    if (error && error.code !== '23505') { alert('No se pudo dar me gusta: ' + error.message); return; }
   }
-  await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
   await refreshData();
   openText(id);
 }
@@ -617,7 +687,7 @@ function renderMiembros() {
     <div class="u-s38">
       ${allUsers.map(u => `
         <div class="u-s39">
-          <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
+          ${avatarImg(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || '')}`, 'avatar')}
           <div class="u-s40">
             <div class="u-s41">${esc(u.name)}
               ${esAdmin(u) ? '<span class="u-s42">⭐ Admin</span>' : u.rol === 'profesor' ? '<span class="u-s42">👨‍🏫 Docente</span>' : ''}
@@ -710,6 +780,7 @@ const ACCIONES = {
   delete:            el  => deleteText(el.dataset.id),
   comment:           el  => submitComment(el.dataset.id),
   docente:           el  => habilitarDocente(el.dataset.uid, el.dataset.habilitar === '1'),
+  'mas-textos':      ()  => cargarMasTextos(),
   'eliminar-miembro': el => eliminarMiembro(el.dataset.uid, allUsers.find(x => x.id === el.dataset.uid)?.name || '')
 };
 document.addEventListener('click', e => {
@@ -717,4 +788,12 @@ document.addEventListener('click', e => {
   if (!el || !ACCIONES[el.dataset.action]) return;
   if (el.tagName === 'A') e.preventDefault();
   ACCIONES[el.dataset.action](el);
+});
+// Teclado: Enter / Espacio en elementos con acción que no son <button>/<a> (tarjetas)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[data-action][tabindex="0"]');
+  if (!el || el !== e.target || el.tagName === 'BUTTON' || el.tagName === 'A') return;
+  e.preventDefault();
+  if (ACCIONES[el.dataset.action]) ACCIONES[el.dataset.action](el);
 });
