@@ -8,6 +8,8 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // PKCE: el login vuelve con ?code= (de un solo uso, 5 min) en vez de tokens en el #fragmento
+    flowType: 'pkce',
     storageKey: 'letras-academicas-auth'
   }
 });
@@ -19,9 +21,17 @@ let quillEditor   = null;
 let editingTextId = null;
 let appInitialized = false;
 let cursoGeneralId = null;   // Fase 1: todo texto nuevo va al curso General
+let misCursosDocente = new Set(); // cursos donde soy docente (para moderar)
 
+// Columnas de perfiles que la base deja leer (hallazgo 4: nada de select *)
+const PERFIL_COLS = 'id, name, username, avatar_url, rol';
 const esDocente = u => u && (u.rol === 'profesor' || u.rol === 'admin');
 const esAdmin   = u => u && u.rol === 'admin';
+// Autoría por id de cuenta (author_id); el username es solo un dato visible.
+// (Fallback a username solo mientras la base no tenga la migración f02.)
+const esMio = t => !!currentUser && (t.author_id ? t.author_id === currentUser.id : t.author_username === currentUser.username);
+// Moderar (destacar / borrar) = admin o docente del curso del texto; igual que en la base
+const puedeModerar = t => esAdmin(currentUser) || (!!t.curso_id && misCursosDocente.has(t.curso_id));
 
 // Utilidades DOM
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -41,100 +51,281 @@ function formatDate(d){
 
 // Tema oscuro
 document.getElementById('theme-toggle').addEventListener('click', () => {
-  document.body.classList.toggle('dark');
-  document.getElementById('theme-toggle').textContent = document.body.classList.contains('dark') ? '☀️' : '🌓';
+  const oscuro = document.body.classList.toggle('dark');
+  const b = document.getElementById('theme-toggle');
+  b.textContent = oscuro ? '☀️' : '🌓';
+  b.setAttribute('aria-pressed', String(oscuro));
 });
 
 // ═══════════════════════════════════════════════════════════════
 // 2. AUTENTICACIÓN
 // ═══════════════════════════════════════════════════════════════
 document.getElementById('login-google-btn').addEventListener('click', async () => {
-  await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  if (error) alert('No se pudo iniciar sesión: ' + error.message);
 });
 
+function limpiarSesionLocal(uid) {
+  if (typeof borrarBorradores === 'function') borrarBorradores(uid);
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.startsWith('letras-academicas-auth')) localStorage.removeItem(key);
+  });
+}
+
 async function doLogout() {
+  const uid = currentUser?.id;
   try {
-    await db.auth.signOut();
-    // Limpiar manualmente la sesión de Supabase del localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-')) localStorage.removeItem(key);
-    });
-  } catch(err) {
+    const { error } = await db.auth.signOut();
+    if (error) console.error('Error al cerrar sesión:', error);
+  } catch (err) {
     console.error('Error al cerrar sesión:', err);
   } finally {
+    limpiarSesionLocal(uid);
     location.href = window.location.origin;
   }
 }
 
-db.auth.onAuthStateChange(async (event, session) => {
-  if (!session) return;
-  if (appInitialized) return;
-  appInitialized = true;
-    
-  const email        = session.user.email;
-  const name         = session.user.user_metadata.full_name || email.split('@')[0];
-  const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-  const avatarUrl    = session.user.user_metadata.avatar_url
+// Quitar ?code= / errores de OAuth de la barra de direcciones después del login
+function limpiarUrlDeAuth() {
+  const u = new URL(window.location.href);
+  const err = u.searchParams.get('error_description');
+  if (err) alert('No se pudo iniciar sesión: ' + err);
+  if (['code', 'error', 'error_code', 'error_description', 'state'].some(k => u.searchParams.has(k))) {
+    history.replaceState(null, '', u.pathname + u.hash);
+  }
+}
+
+let authGen = 0;          // invalida inicializaciones en curso si cambia la sesión
+let iniciandoUid = null;
+
+// Supabase recomienda no hacer await dentro del callback (puede trabar el cliente):
+// se difiere el trabajo con setTimeout(0).
+db.auth.onAuthStateChange((event, session) => {
+  setTimeout(() => { manejarAuth(event, session); }, 0);
+});
+
+async function manejarAuth(event, session) {
+  const uid = session?.user?.id || null;
+  if (!uid) {                       // SIGNED_OUT (también desde otra pestaña) o sin sesión
+    authGen++;
+    iniciandoUid = null;
+    if (currentUser || appInitialized) cerrarApp();
+    else mostrarLanding();
+    return;
+  }
+  if (currentUser && currentUser.id === uid) return;   // TOKEN_REFRESHED, USER_UPDATED…
+  if (iniciandoUid === uid) return;                    // ya se está cargando esta cuenta
+  if (currentUser && currentUser.id !== uid) cerrarApp();  // cambió la cuenta (otra pestaña)
+  const gen = ++authGen;
+  iniciandoUid = uid;
+  try {
+    await iniciarApp(session, gen);
+  } catch (e) {
+    if (gen !== authGen) return;
+    console.error('Error al cargar la cuenta:', e);
+    alert('No se pudo cargar tu cuenta: ' + (e?.message || 'intentá de nuevo.'));
+    await db.auth.signOut();
+  } finally {
+    if (iniciandoUid === uid) iniciandoUid = null;
+  }
+}
+
+async function obtenerOCrearPerfil(session) {
+  const uid          = session.user.id;
+  const email        = session.user.email || '';
+  const name         = session.user.user_metadata?.full_name || email.split('@')[0] || 'Usuario';
+  const avatarUrl    = session.user.user_metadata?.avatar_url
     || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+  const leer = () => db.from('perfiles').select(PERFIL_COLS).eq('id', uid).maybeSingle();
 
-  let { data: userProfile } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+  let { data: perfil, error } = await leer();
+  if (error) throw error;
 
-  if (!userProfile) {
-    const newProfile = {
-      id:         session.user.id,
-      username:   baseUsername,
-      name:       name,
+  // El username y el rol los decide la base (único, derivado del email); acá solo se sugiere.
+  // Si choca (23505) se reintenta con sufijo, por si la base todavía no tiene la migración f02.
+  const base = (email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'usuario').slice(0, 30);
+  for (let intento = 0; !perfil && intento < 4; intento++) {
+    const sufijo = intento === 0 ? '' : String(Math.floor(1000 + Math.random() * 9000));
+    const { error: insErr } = await db.from('perfiles').insert([{
+      id:         uid,
+      username:   base + sufijo,
+      name:       name.slice(0, 120),
       color:      '#2d5a8e',
       avatar_url: avatarUrl
-    };
-    await db.from('perfiles').insert([newProfile]);
-    // el rol lo asigna la base (siempre 'alumno'); releemos el perfil real
-    const { data: creado } = await db.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-    userProfile = creado || { ...newProfile, rol: 'alumno' };
-  } else if (userProfile.avatar_url !== avatarUrl) {
-    await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
-    userProfile.avatar_url = avatarUrl;
+    }]);
+    // 23505 = ya existe (otra pestaña lo creó) o choque de username: releer / reintentar
+    if (insErr && insErr.code !== '23505') throw insErr;
+    ({ data: perfil, error } = await leer());
+    if (error) throw error;
   }
+  if (!perfil) throw new Error('No se pudo crear tu perfil.');
 
-  currentUser = userProfile;
+  if (perfil.avatar_url !== avatarUrl) {
+    const { error: updErr } = await db.from('perfiles').update({ avatar_url: avatarUrl }).eq('id', uid);
+    if (updErr) console.warn('No se pudo actualizar el avatar', updErr);
+    else perfil.avatar_url = avatarUrl;
+  }
+  return perfil;
+}
+
+async function iniciarApp(session, gen) {
+  limpiarUrlDeAuth();
+  const perfil = await obtenerOCrearPerfil(session);
+  if (gen !== authGen) return;
+  currentUser = perfil;
 
   // Fase 1: asegurar membresía en el curso General (idempotente)
   try {
     const { data: cid, error } = await db.rpc('unirse_a_curso', { codigo: 'GENERAL' });
-    if (!error) cursoGeneralId = cid;
+    if (error) console.warn('No se pudo unir al curso General', error);
+    else cursoGeneralId = cid;
   } catch (e) { console.warn('No se pudo unir al curso General', e); }
+  await cargarMisCursos();
+  await refreshData();
+  if (gen !== authGen) return;
+
+  appInitialized = true;
   document.getElementById('topbar-uname').textContent = currentUser.name;
   document.getElementById('topbar-avatar').src = currentUser.avatar_url;
   showEl('topbar-avatar');
-
   hideEl('landing-screen');
   showEl('topbar');
   showEl('main-layout');
-  await refreshData();
   navigate('dashboard');
-});
+}
+
+function mostrarLanding() {
+  hideEl('topbar');
+  hideEl('main-layout');
+  showEl('landing-screen');
+  loadLandingDestacados();
+}
+
+// Sesión cerrada (acá o en otra pestaña) o cambio de cuenta: no dejar datos del usuario anterior
+function cerrarApp() {
+  const uid = currentUser?.id;
+  if (typeof detenerBorrador === 'function') detenerBorrador();
+  if (uid && typeof borrarBorradores === 'function') borrarBorradores(uid);
+  currentUser = null; allTexts = []; allUsers = []; quillEditor = null; editingTextId = null;
+  appInitialized = false; cursoGeneralId = null; misCursosDocente = new Set();
+  document.getElementById('content-area').innerHTML = '';
+  document.getElementById('topbar-uname').textContent = '';
+  document.getElementById('topbar-avatar').removeAttribute('src');
+  hideEl('topbar-avatar');
+  mostrarLanding();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 3. CARGA DE DATOS
 // ═══════════════════════════════════════════════════════════════
-async function refreshData() {
-  const { data: uData } = await db.from('perfiles').select('*');
-  allUsers = uData || [];
-  const { data: tData } = await db.from('textos').select('*').order('created_at', { ascending: false });
-  allTexts = tData || [];
+async function cargarMisCursos() {
+  const { data, error } = await db.from('miembros_curso').select('curso_id, rol').eq('user_id', currentUser.id);
+  if (error) { console.warn('No se pudieron leer tus cursos', error); misCursosDocente = new Set(); return; }
+  misCursosDocente = new Set((data || []).filter(m => m.rol === 'docente').map(m => m.curso_id));
 }
 
-function getAvatar(username, fallbackName) {
-  const user = allUsers.find(u => u.username === username);
+// Paginado: se traen PAGE textos por vez (botón "Cargar más" en la Biblioteca)
+const PAGE = 50;
+let hayMasTextos = false;
+let misTexts = [];
+let filtroActual = 'todos';
+
+async function cargarMisTextos() {
+  const q = col => db.from('textos').select('*').eq(col, col === 'author_id' ? currentUser.id : currentUser.username)
+    .order('created_at', { ascending: false }).limit(200);
+  let r = await q('author_id');
+  if (r.error && r.error.code === '42703') r = await q('author_username');   // base sin migración f02
+  if (r.error) { console.warn('No se pudieron cargar tus textos', r.error); return []; }
+  return r.data || [];
+}
+
+async function refreshData() {
+  const [u, t, mis] = await Promise.all([
+    db.from('perfiles').select(PERFIL_COLS).order('name').limit(500),
+    db.from('textos').select('*').order('created_at', { ascending: false }).range(0, PAGE - 1),
+    cargarMisTextos()
+  ]);
+  if (u.error) console.warn('No se pudieron cargar los perfiles', u.error);
+  if (t.error) console.warn('No se pudieron cargar los textos', t.error);
+  allUsers = u.data || [];
+  allTexts = t.data || [];
+  hayMasTextos = allTexts.length === PAGE;
+  misTexts = mis;
+}
+
+async function cargarMasTextos() {
+  const btn = document.getElementById('btn-mas');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando…'; }
+  const { data, error } = await db.from('textos').select('*').order('created_at', { ascending: false })
+    .range(allTexts.length, allTexts.length + PAGE - 1);
+  if (error) { alert('No se pudieron cargar más textos: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Cargar más'; } return; }
+  const ids = new Set(allTexts.map(x => x.id));
+  allTexts = allTexts.concat((data || []).filter(x => !ids.has(x.id)));
+  hayMasTextos = (data || []).length === PAGE;
+  filterTextos(filtroActual);
+}
+
+function buscarTexto(id) {
+  return allTexts.find(x => x.id === id) || misTexts.find(x => x.id === id) || null;
+}
+
+function avatarImg(url, cls) {
+  // alt vacío: el nombre ya aparece al lado (imagen decorativa)
+  return `<img src="${esc(url)}" class="${cls}" alt="">`;
+}
+
+function getAvatar(userId, username, fallbackName) {
+  const user = allUsers.find(u => (userId && u.id === userId) || u.username === username);
   return user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=random`;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // 4. NAVEGACIÓN (ENRUTADOR)
 // ═══════════════════════════════════════════════════════════════
+// ── Borradores locales: un solo intervalo, clave por usuario + modo, se limpian al salir ──
+let draftTimer = null;
+function claveBorrador() {
+  if (!currentUser) return null;
+  return `borrador:${currentUser.id}:${editingTextId ? 'editar:' + editingTextId : 'nuevo'}`;
+}
+function detenerBorrador() {
+  if (draftTimer) { clearInterval(draftTimer); draftTimer = null; }
+}
+function guardarBorrador() {
+  const k = claveBorrador();
+  const titleInput = document.getElementById('f-title');
+  const typeInput  = document.getElementById('f-type');
+  if (!k || !titleInput || !typeInput || !quillEditor) return;
+  const body = htmlDelEditor();
+  if (!titleInput.value.trim() && !body) { localStorage.removeItem(k); return; }
+  try {
+    localStorage.setItem(k, JSON.stringify({ title: titleInput.value, type: typeInput.value, body, ts: Date.now() }));
+  } catch (e) { console.warn('No se pudo guardar el borrador', e); }
+}
+function restaurarBorrador(original) {
+  const k = claveBorrador();
+  const raw = k && localStorage.getItem(k);
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch { localStorage.removeItem(k); return; }
+  if (original && data.title === original.title && data.type === original.type && data.body === original.body) return;
+  if (original && !confirm('Tenés cambios sin guardar de este texto. ¿Recuperarlos?')) { localStorage.removeItem(k); return; }
+  document.getElementById('f-title').value = data.title || '';
+  document.getElementById('f-type').value  = data.type  || 'ensayo';
+  cargarEnEditor(data.body);
+}
+function borrarBorradores(uid) {
+  Object.keys(localStorage).forEach(k => {
+    if (k === 'borrador' || (uid && k.startsWith(`borrador:${uid}:`))) localStorage.removeItem(k);
+  });
+}
+
 function navigate(page) {
+  detenerBorrador();
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.page === page);
+    const activo = el.dataset.page === page;
+    el.classList.toggle('active', activo);
+    if (activo) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
 
   const ca = document.getElementById('content-area');
@@ -162,35 +353,13 @@ function navigate(page) {
         ]
       }
     });
+    quillEditor.root.setAttribute('aria-labelledby', 'lbl-contenido');
+    quillEditor.root.setAttribute('role', 'textbox');
+    quillEditor.root.setAttribute('aria-multiline', 'true');
 
-    // Restaurar borrador si existe
-    const borrador = localStorage.getItem('borrador');
-
-    if (borrador && !editingTextId) {
-      const titleInput = document.getElementById('f-title');
-      const typeInput  = document.getElementById('f-type');
-
-      if (titleInput && typeInput && quillEditor) {
-        const data = JSON.parse(borrador);
-        titleInput.value = data.title || '';
-        typeInput.value  = data.type  || 'ensayo';
-        cargarEnEditor(data.body);
-      }
-    }
-
-    // Guardar automáticamente cada 10 segundos
-    setInterval(() => {
-      const titleInput = document.getElementById('f-title');
-      const typeInput  = document.getElementById('f-type');
-
-      if (!titleInput || !typeInput || !quillEditor) return;
-
-      localStorage.setItem('borrador', JSON.stringify({
-        title: titleInput.value,
-        type:  typeInput.value,
-        body:  htmlDelEditor()
-      }));
-    }, 10000);
+    if (!editingTextId) restaurarBorrador(null);
+    // Guardado automático cada 10 s (un único intervalo; se detiene al salir de la vista)
+    draftTimer = setInterval(guardarBorrador, 10000);
 
     if (!editingTextId) {
       document.getElementById('btn-pub').textContent = "Publicar en la plataforma";
@@ -224,17 +393,23 @@ function renderDashboard() {
   `;
 }
 
+function botonMas() {
+  return hayMasTextos ? '<button class="btn-outline" id="btn-mas" type="button" data-action="mas-textos">Cargar más</button>' : '';
+}
+
 function renderTextos() {
+  filtroActual = 'todos';
   return `
     <div class="page-header"><h1>Biblioteca Virtual</h1></div>
     <div class="u-s10">
       ${['todos','ensayo','informe','argumentativo','narrativo','expositivo','otro'].map(f => `
-        <button class="btn-outline${f === 'todos' ? ' is-active' : ''}" data-action="filter" data-arg="${f}" id="f-${f}">
+        <button class="btn-outline${f === 'todos' ? ' is-active' : ''}" data-action="filter" data-arg="${f}" id="f-${f}" type="button" aria-pressed="${f === 'todos'}">
           ${f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
       `).join('')}
     </div>
     <div id="textos-list">${allTexts.map(cardHtml).join('')}</div>
+    <div id="textos-mas">${botonMas()}</div>
   `;
 }
 
@@ -243,13 +418,19 @@ function filterTextos(tipo) {
     const btn = document.getElementById('f-' + f);
     if (!btn) return;
     btn.classList.toggle('is-active', f === tipo);
+    btn.setAttribute('aria-pressed', String(f === tipo));
   });
+  filtroActual = tipo;
   const filtered = tipo === 'todos' ? allTexts : allTexts.filter(t => t.type === tipo);
-  document.getElementById('textos-list').innerHTML = filtered.map(cardHtml).join('');
+  const lista = document.getElementById('textos-list');
+  if (!lista) return;
+  lista.innerHTML = filtered.map(cardHtml).join('') || '<p class="u-s9">No hay textos de este tipo entre los cargados.</p>';
+  const mas = document.getElementById('textos-mas');
+  if (mas) mas.innerHTML = botonMas();
 }
 
 function renderMisTextos() {
-  const mis = allTexts.filter(t => t.author_username === currentUser.username);
+  const mis = misTexts.filter(esMio);
   return `
     <div class="page-header"><h1>Mis textos</h1></div>
     <button class="btn-primary u-s11" data-action="navigate" data-arg="nuevo">＋ Publicar nuevo texto</button>
@@ -262,7 +443,7 @@ function cardHtml(t) {
   tempDiv.innerHTML = safeHtml(t.body);
   const plainText   = tempDiv.textContent || tempDiv.innerText || "";
   return `
-    <div class="card" data-action="open" data-id="${esc(t.id)}">
+    <div class="card" data-action="open" data-id="${esc(t.id)}" role="link" tabindex="0">
       <div class="u-s12">
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         ${t.destacado ? '<span class="u-s13">⭐ Destacado</span>' : ''}
@@ -272,7 +453,7 @@ function cardHtml(t) {
       <div class="text-excerpt">${esc(plainText)}</div>
       <div class="u-s15">
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          ${avatarImg(getAvatar(t.author_id, t.author_username, t.author_name), "avatar avatar-sm")}
           <span class="u-s16">${esc(t.author_name)}</span>
         </div>
         <span class="u-s17">❤️ ${t.likes || 0}</span>
@@ -286,11 +467,11 @@ function renderNuevo() {
     <div class="page-header"><h1 id="lbl-header-nuevo">${tituloPantalla}</h1></div>
     <div class="u-s18">
       <div class="u-s11">
-        <label class="u-s19">Título</label>
+        <label class="u-s19" for="f-title">Título</label>
         <input class="u-s20" id="f-title" type="text" maxlength="200" placeholder="Ej: Análisis del discurso en medios digitales">
       </div>
       <div class="u-s11">
-        <label class="u-s19">Tipo de texto</label>
+        <label class="u-s19" for="f-type">Tipo de texto</label>
         <select class="u-s21" id="f-type">
           <option value="ensayo">Ensayo</option>
           <option value="informe">Informe</option>
@@ -301,7 +482,7 @@ function renderNuevo() {
         </select>
       </div>
       <div class="u-s11">
-        <label class="u-s19">Contenido</label>
+        <span class="u-s19" id="lbl-contenido">Contenido</span>
         <div class="u-s22" id="editor-container"></div>
       </div>
       <button class="btn-primary" id="btn-pub" data-action="submit-text">Publicar en la plataforma</button>
@@ -313,7 +494,7 @@ function renderNuevo() {
 // ═══════════════════════════════════════════════════════════════
 
 function editText(id) {
-  const t = allTexts.find(x => x.id === id);
+  const t = buscarTexto(id);
   if (!t) return;
   editingTextId = id;
   navigate('nuevo');
@@ -322,6 +503,7 @@ function editText(id) {
   cargarEnEditor(t.body);
   document.getElementById('btn-pub').textContent          = "Guardar cambios";
   document.getElementById('lbl-header-nuevo').textContent = "Editar publicación";
+  restaurarBorrador({ title: t.title, type: t.type, body: htmlDelEditor() });
 }
 
 async function submitText() {
@@ -340,8 +522,10 @@ async function submitText() {
 
   try {
     if (editingTextId) {
-      await db.from('textos').update({ title, type, body: bodyHTML }).eq('id', editingTextId);
-      editingTextId = null;
+      const { data: upd, error: updErr } = await db.from('textos')
+        .update({ title, type, body: bodyHTML }).eq('id', editingTextId).select('id');
+      if (updErr) throw updErr;
+      if (!upd || !upd.length) throw new Error('No tenés permiso para editar este texto (o ya no existe).');
     } else {
       const { error: insErr } = await db.from('textos').insert([{
         title,
@@ -356,8 +540,11 @@ async function submitText() {
       }]);
       if (insErr) throw insErr;
     }
+    detenerBorrador();
+    if (claveBorrador()) localStorage.removeItem(claveBorrador());
+    localStorage.removeItem('borrador');   // clave vieja (compartida entre usuarios)
+    editingTextId = null;
     await refreshData();
-    localStorage.removeItem('borrador');
     navigate('mis-textos');
   } catch (err) {
     console.error('Error al guardar:', err);
@@ -371,12 +558,19 @@ async function submitText() {
 // ═══════════════════════════════════════════════════════════════
 
 async function openText(id) {
-  const t = allTexts.find(x => x.id === id);
-  if (!t) return;
+  let t = buscarTexto(id);
+  if (!t) {
+    const { data, error } = await db.from('textos').select('*').eq('id', id).maybeSingle();
+    if (error || !data) { alert('No se encontró el texto (o no tenés acceso).'); return; }
+    t = data;
+  }
   const ca = document.getElementById('content-area');
 
-  const { data: coms }   = await db.from('comentarios').select('*').eq('texto_id', id).order('created_at', { ascending: true });
-  const { data: myLike } = await db.from('likes').select('*').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle();
+  const [{ data: coms, error: comsErr }, { data: myLike }] = await Promise.all([
+    db.from('comentarios').select('*').eq('texto_id', id).order('created_at', { ascending: true }).limit(300),
+    db.from('likes').select('id').eq('texto_id', id).eq('user_username', currentUser.username).maybeSingle()
+  ]);
+  if (comsErr) console.warn('No se pudieron cargar las devoluciones', comsErr);
   const yaDioLike = !!myLike;
 
   ca.innerHTML = `
@@ -387,20 +581,20 @@ async function openText(id) {
         <span class="tag ${esc(t.type)}">${esc(t.type)}</span>
         <span class="u-s9">${formatDate(t.created_at)}</span>
         <div class="u-s2">
-          <img src="${esc(getAvatar(t.author_username, t.author_name))}" class="avatar avatar-sm">
+          ${avatarImg(getAvatar(t.author_id, t.author_username, t.author_name), "avatar avatar-sm")}
           <span class="u-s3">${esc(t.author_name)}</span>
         </div>
-        <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
+        <button class="btn-outline${yaDioLike ? ' btn-liked' : ''}" type="button" aria-pressed="${yaDioLike}" data-action="like" data-id="${esc(t.id)}" data-on="${yaDioLike ? '1' : '0'}">
           ${yaDioLike ? '❤️ Ya no me gusta' : '🤍 Me gusta'} (${t.likes || 0})
         </button>
-        ${esDocente(currentUser) ? `
+        ${puedeModerar(t) ? `
           <button class="btn-outline" data-action="destacar" data-id="${esc(t.id)}" data-on="${t.destacado ? '1' : '0'}">
             ${t.destacado ? 'Quitar Destacado' : '⭐ Destacar'}
           </button>` : ''}
-        ${currentUser.username === t.author_username ? `
-          <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>
-          <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>
-        ` : ''}
+        ${esMio(t) ? `
+          <button class="btn-outline u-s26" data-action="edit" data-id="${esc(t.id)}">✏️ Editar</button>` : ''}
+        ${esMio(t) || puedeModerar(t) ? `
+          <button class="btn-outline u-s27" data-action="delete" data-id="${esc(t.id)}">🗑️ Eliminar</button>` : ''}
       </div>
       <div class="u-s28">${safeHtml(t.body)}</div>
     </div>
@@ -410,7 +604,7 @@ async function openText(id) {
       ${(coms && coms.length) ? coms.map(c => `
         <div class="comment">
           <div class="u-s30">
-            <img src="${esc(getAvatar(c.author_username, c.author_name))}" class="avatar avatar-sm">
+            ${avatarImg(getAvatar(c.author_id, c.author_username, c.author_name), "avatar avatar-sm")}
             <span class="u-s31">${esc(c.author_name)}</span>
             <span class="u-s32">${formatDate(c.created_at)}</span>
           </div>
@@ -418,6 +612,7 @@ async function openText(id) {
         </div>
       `).join('') : '<p class="u-s34">Aún no hay devoluciones. ¡Sé el primero!</p>'}
       <h4 class="u-s35">Añadir devolución</h4>
+      <label class="sr-only" for="com-body">Tu devolución</label>
       <textarea class="u-s36" id="com-body" rows="4" maxlength="5000" placeholder="Escribí tu devolución académica..."></textarea>
       <button class="btn-primary u-s37" data-action="comment" data-id="${esc(t.id)}">Enviar devolución</button>
     </div>
@@ -427,8 +622,8 @@ async function openText(id) {
 
 async function submitComment(textoId) {
   const body = document.getElementById('com-body').value.trim();
-  if (!body || body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   if (!body) { alert('Escribí algo antes de enviar.'); return; }
+  if (body.length > 5000) { alert('El comentario debe tener entre 1 y 5000 caracteres.'); return; }
   
   const btn = document.querySelector('[data-action="comment"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
@@ -439,7 +634,7 @@ async function submitComment(textoId) {
     author_name:     currentUser.name,
     body:            body
   }]);
-  if (comErr) { alert('No se pudo enviar: ' + comErr.message); if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; } return; }
+  if (comErr) { alert('No se pudo enviar: ' + comErr.message); if (btn) { btn.disabled = false; btn.textContent = 'Enviar devolución'; } return; }
   openText(textoId);
 }
 
@@ -448,33 +643,39 @@ async function submitComment(textoId) {
 // ═══════════════════════════════════════════════════════════════
 
 async function toggleLike(id, yaDioLike) {
-  // No se puede likear el propio texto
-  const t = allTexts.find(x => x.id === id);
-  if (t && t.author_username === currentUser.username) {
-    alert('No podés darle like a tu propio texto.');
-    return;
-  }
-  // Si ya dio like, mostrar mensaje
+  const t = buscarTexto(id);
+  if (t && esMio(t)) { alert('No podés darle like a tu propio texto.'); return; }
   if (yaDioLike) {
-    alert('Ya le diste like a este texto.');
-    return;
+    // "Ya no me gusta": borra solo el like propio (la base lo restringe a mi cuenta)
+    const { data, error } = await db.from('likes').delete()
+      .eq('texto_id', id).eq('user_username', currentUser.username).select('id');
+    if (error) { alert('No se pudo quitar el me gusta: ' + error.message); return; }
+    if (!data || !data.length) console.warn('No había un me gusta propio para quitar');
+  } else {
+    const { error } = await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
+    if (error && error.code !== '23505') { alert('No se pudo dar me gusta: ' + error.message); return; }
   }
-  await db.from('likes').insert([{ texto_id: id, user_username: currentUser.username }]);
   await refreshData();
   openText(id);
 }
 
 async function toggleDestacado(id, estadoActual) {
-  await db.from('textos').update({ destacado: !estadoActual }).eq('id', id);
+  const { data, error } = await db.from('textos').update({ destacado: !estadoActual }).eq('id', id).select('id, destacado');
+  if (error) { alert('No se pudo cambiar el destacado: ' + error.message); return; }
+  if (!data || !data.length || data[0].destacado === estadoActual) {
+    alert('No tenés permiso para destacar este texto.');
+    return;
+  }
   await refreshData();
   openText(id);
 }
 
 async function deleteText(id) {
   if (!confirm('¿Estás seguro de eliminar este texto permanentemente?')) return;
-  await db.from('likes').delete().eq('texto_id', id);
-  await db.from('comentarios').delete().eq('texto_id', id);
-  await db.from('textos').delete().eq('id', id);
+  // Un solo DELETE: comentarios y likes se borran en cascada (FK ON DELETE CASCADE)
+  const { data, error } = await db.from('textos').delete().eq('id', id).select('id');
+  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
+  if (!data || !data.length) { alert('No tenés permiso para eliminar este texto (o ya no existe).'); return; }
   await refreshData();
   navigate('mis-textos');
 }
@@ -489,7 +690,7 @@ function renderMiembros() {
     <div class="u-s38">
       ${allUsers.map(u => `
         <div class="u-s39">
-          <img src="${esc(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`)}" class="avatar">
+          ${avatarImg(u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || '')}`, 'avatar')}
           <div class="u-s40">
             <div class="u-s41">${esc(u.name)}
               ${esAdmin(u) ? '<span class="u-s42">⭐ Admin</span>' : u.rol === 'profesor' ? '<span class="u-s42">👨‍🏫 Docente</span>' : ''}
@@ -501,7 +702,7 @@ function renderMiembros() {
               data-action="docente">
               ${u.rol === 'profesor' ? '↩️ Quitar docente' : '👨‍🏫 Habilitar docente'}</button>
           ` : ''}
-          ${esDocente(currentUser) && u.id !== currentUser.id ? `
+          ${esAdmin(currentUser) && u.id !== currentUser.id && !esAdmin(u) ? `
             <button class="btn-outline u-s27"
               data-action="eliminar-miembro" data-uid="${esc(u.id)}">🗑️ Eliminar</button>
           ` : ''}
@@ -521,8 +722,11 @@ async function habilitarDocente(id, habilitar) {
 }
 
 async function eliminarMiembro(id, nombre) {
+  // Solo el admin, nunca a sí mismo ni a otro admin (lo valida la RPC en la base)
+  if (!esAdmin(currentUser)) return;
   if (!confirm(`¿Eliminar a ${nombre} de la plataforma?`)) return;
-  await db.from('perfiles').delete().eq('id', id);
+  const { error } = await db.rpc('eliminar_miembro', { p_user: id });
+  if (error) { alert('No se pudo eliminar: ' + error.message); return; }
   await refreshData();
   navigate('miembros');
 }
@@ -532,10 +736,13 @@ async function eliminarMiembro(id, nombre) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadLandingDestacados() {
-  const { data } = await db.from('textos')
-    .select('*')
+  // anon solo puede leer estas columnas (hallazgo 12)
+  const { data, error } = await db.from('textos')
+    .select('id, title, type, body, author_name, created_at')
     .eq('destacado', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(9);
+  if (error) console.warn('No se pudieron cargar los destacados', error);
 
   const contenedor = document.getElementById('landing-textos');
   if (!data || data.length === 0) {
@@ -560,13 +767,8 @@ async function loadLandingDestacados() {
   }).join('');
 }
 
-// Al cargar la página, verificar si ya hay sesión activa
-db.auth.getSession().then(({ data: { session } }) => {
-  if (!session) {
-    loadLandingDestacados();
-  }
-  // Si hay sesión, onAuthStateChange muestra la app automáticamente
-});
+// La carga inicial la resuelve onAuthStateChange (evento INITIAL_SESSION):
+// sin sesión muestra la landing con destacados; con sesión abre la app.
 
 // Delegación de eventos (CSP sin 'unsafe-inline')
 const ACCIONES = {
@@ -581,6 +783,7 @@ const ACCIONES = {
   delete:            el  => deleteText(el.dataset.id),
   comment:           el  => submitComment(el.dataset.id),
   docente:           el  => habilitarDocente(el.dataset.uid, el.dataset.habilitar === '1'),
+  'mas-textos':      ()  => cargarMasTextos(),
   'eliminar-miembro': el => eliminarMiembro(el.dataset.uid, allUsers.find(x => x.id === el.dataset.uid)?.name || '')
 };
 document.addEventListener('click', e => {
@@ -588,4 +791,12 @@ document.addEventListener('click', e => {
   if (!el || !ACCIONES[el.dataset.action]) return;
   if (el.tagName === 'A') e.preventDefault();
   ACCIONES[el.dataset.action](el);
+});
+// Teclado: Enter / Espacio en elementos con acción que no son <button>/<a> (tarjetas)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[data-action][tabindex="0"]');
+  if (!el || el !== e.target || el.tagName === 'BUTTON' || el.tagName === 'A') return;
+  e.preventDefault();
+  if (ACCIONES[el.dataset.action]) ACCIONES[el.dataset.action](el);
 });

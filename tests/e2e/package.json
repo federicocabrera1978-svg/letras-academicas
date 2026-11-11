@@ -1,0 +1,6 @@
+{
+  "name": "letras-e2e",
+  "private": true,
+  "description": "E2E local de la UI contra PostgREST + Postgres locales (no toca producción)",
+  "dependencies": { "playwright-core": "1.56.x", "jsonwebtoken": "9.x" }
+}
