@@ -11,3 +11,13 @@
 4. `npm i && BASE=http://localhost:8080 node e2e.js` y `BASE=http://localhost:8081 node e2e.js`
    (usa Chrome headless; la sesión se inyecta en localStorage con un JWT firmado localmente,
    así que el login real con Google NO se prueba acá).
+
+## Foros y sala de debates (`e2e_foros.js`)
+
+- `e2e` = baseline + seed + **todas** las migraciones (incluye 20261116200*); `e2e_old` = baseline + seed +
+  security-fixes-nov (como prod hoy, sin foros).
+- `BASE=http://localhost:8080 FD=1 node e2e_foros.js` (flujos completos por rol, CSP, XSS como texto, celular 390px)
+- `BASE=http://localhost:8081 FD=0 node e2e_foros.js` (frontend nuevo contra la base sin las migraciones nuevas)
+- `e2e.js` acepta `MIGRADA=1` para correrlo contra `e2e_old` ya migrada con security-fixes-nov.
+- Cada suite se corre sobre una base recién creada (la app une a todos al curso GENERAL al entrar,
+  así que los datos de una corrida cambian lo que ve la siguiente).
