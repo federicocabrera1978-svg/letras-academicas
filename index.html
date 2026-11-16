@@ -12,6 +12,7 @@
 <link href="vendor/quill-2.0.3.snow.css" rel="stylesheet" integrity="sha384-ecIckRi4QlKYya/FQUbBUjS4qp65jF/J87Guw5uzTbO1C1Jfa/6kYmd6dXUF6D7i">
 <link rel="stylesheet" href="index.css">
 <link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="conversacion.css">
 
 <script src="vendor/purify-3.4.17.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx"></script>
 <script src="vendor/supabase-js-2.118.0.min.js" integrity="sha384-UagCvVPT5XXA0Hx+nJYUAGBFseHT9zBgpJMSebsAxl9lciTwbT+39j5VfRjdP5Tp"></script>
@@ -92,6 +93,11 @@
         <h2 id="lp-gal-title" class="lp-h2">Textos destacados</h2>
         <div id="landing-textos" class="lp-cards"></div>
       </section>
+
+      <section class="lp-gallery hidden" id="lp-debates" aria-labelledby="lp-deb-title">
+        <h2 id="lp-deb-title" class="lp-h2">Lo que dejaron los debates</h2>
+        <div id="landing-debates" class="lp-cards"></div>
+      </section>
     </main>
 
     <footer class="lp-foot">
@@ -121,6 +127,8 @@
       <button type="button" class="nav-item active" aria-current="page" data-page="dashboard" data-action="navigate" data-arg="dashboard"><span class="nav-icon" aria-hidden="true">🏠</span> <span>◈ Inicio</span></button>
       <button type="button" class="nav-item" data-page="textos"     data-action="navigate" data-arg="textos">    <span class="nav-icon" aria-hidden="true">📚</span> <span>◇ Textos</span></button>
       <button type="button" class="nav-item" data-page="nuevo"      data-action="navigate" data-arg="nuevo">     <span class="nav-icon" aria-hidden="true">✍️</span> <span>＋ Publicar</span></button>
+      <button type="button" class="nav-item" data-page="foros"      data-action="navigate" data-arg="foros">     <span class="nav-icon" aria-hidden="true">💬</span> <span>◌ Foros</span></button>
+      <button type="button" class="nav-item" data-page="debates"    data-action="navigate" data-arg="debates">   <span class="nav-icon" aria-hidden="true">⚖️</span> <span>⇄ Debates</span></button>
       <button type="button" class="nav-item" data-page="miembros"   data-action="navigate" data-arg="miembros">  <span class="nav-icon" aria-hidden="true">👥</span> <span>◎ Compañeros</span></button>
       <div class="u-s6" aria-hidden="true">Mi cuenta</div>
       <button type="button" class="nav-item" data-page="mis-textos" data-action="navigate" data-arg="mis-textos"><span class="nav-icon" aria-hidden="true">📁</span> <span>◻ Mis textos</span></button>
@@ -132,6 +140,7 @@
 
 <script src="vendor/quill-2.0.3.js" integrity="sha384-utBUCeG4SYaCm4m7GQZYr8Hy8Fpy3V4KGjBZaf4WTKOcwhCYpt/0PfeEe3HNlwx8"></script>
 <script src="index.js"></script>
+<script src="conversacion.js"></script>
 <script src="landing.js"></script>
 
 </body>

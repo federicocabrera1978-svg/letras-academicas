@@ -181,6 +181,7 @@ async function iniciarApp(session, gen) {
     else cursoGeneralId = cid;
   } catch (e) { console.warn('No se pudo unir al curso General', e); }
   await cargarMisCursos();
+  if (typeof cargarMisCursosConNombre === 'function') await cargarMisCursosConNombre();
   await refreshData();
   if (gen !== authGen) return;
 
@@ -199,6 +200,7 @@ function mostrarLanding() {
   hideEl('main-layout');
   showEl('landing-screen');
   loadLandingDestacados();
+  if (typeof loadLandingSintesis === 'function') loadLandingSintesis();
 }
 
 // Sesión cerrada (acá o en otra pestaña) o cambio de cuenta: no dejar datos del usuario anterior
@@ -208,6 +210,7 @@ function cerrarApp() {
   if (uid && typeof borrarBorradores === 'function') borrarBorradores(uid);
   currentUser = null; allTexts = []; allUsers = []; quillEditor = null; editingTextId = null;
   appInitialized = false; cursoGeneralId = null; misCursosDocente = new Set();
+  if (typeof misCursos !== 'undefined') { misCursos = []; foroActual = null; debateActual = null; }
   document.getElementById('content-area').innerHTML = '';
   document.getElementById('topbar-uname').textContent = '';
   document.getElementById('topbar-avatar').removeAttribute('src');
@@ -320,6 +323,16 @@ function borrarBorradores(uid) {
   });
 }
 
+// Vistas del enrutador (conversacion.js suma foros y debates)
+const PAGINAS = {
+  dashboard:    () => renderDashboard(),
+  textos:       () => renderTextos(),
+  nuevo:        () => renderNuevo(),
+  miembros:     () => renderMiembros(),
+  'mis-textos': () => renderMisTextos()
+};
+const AL_ENTRAR = {};
+
 function navigate(page) {
   detenerBorrador();
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -330,15 +343,8 @@ function navigate(page) {
 
   const ca = document.getElementById('content-area');
 
-  const pages = {
-    dashboard:    renderDashboard,
-    textos:       renderTextos,
-    nuevo:        renderNuevo,
-    miembros:     renderMiembros,
-    'mis-textos': renderMisTextos
-  };
-
-  ca.innerHTML = (pages[page] || renderDashboard)();
+  ca.innerHTML = (PAGINAS[page] || renderDashboard)();
+  if (AL_ENTRAR[page]) AL_ENTRAR[page]();   // vistas que cargan datos al entrar (foros, debates)
 
   if (page === 'nuevo') {
     quillEditor = new Quill('#editor-container', {

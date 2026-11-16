@@ -1,0 +1,14 @@
+/* Foros y sala de debates (sin estilos en línea: la CSP no permite 'unsafe-inline') */
+.cv-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.cv-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--accent-light); color: var(--accent); }
+.cv-badge-warn { background: #fee2e2; color: #991b1b; }
+.dark .cv-badge-warn { background: #450a0a; color: #fecaca; }
+.cv-msg { margin-bottom: 12px; }
+.cv-respuesta { margin: 12px 0 0 24px; border-left: 3px solid var(--border-color); padding-left: 14px; }
+.cv-nuevo { margin-bottom: 20px; }
+.cv-nuevo summary { cursor: pointer; font-weight: 600; margin-bottom: 14px; }
+.cv-nuevo[open] summary { margin-bottom: 20px; }
+.cv-posturas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.cv-postura { background: var(--bg-card); padding: 20px; border-radius: var(--r); border: 1px solid var(--border-color); }
+@media (max-width: 640px) { .cv-respuesta { margin-left: 10px; padding-left: 10px; } }
