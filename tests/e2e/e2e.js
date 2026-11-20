@@ -2,7 +2,7 @@
 const { chromium } = require('playwright-core');
 const jwt = require('jsonwebtoken');
 const BASE = process.env.BASE || 'http://localhost:8080';
-const MIGRADA = BASE.endsWith('8080');
+const MIGRADA = process.env.MIGRADA ? process.env.MIGRADA === '1' : BASE.endsWith('8080');
 const SECRET = 'e2e-secret-e2e-secret-e2e-secret-0123456789';
 const U = {
   admin: { id:'00000000-0000-0000-0000-00000000000a', email:'federico.admin@gmail.com', name:'Federico' },
